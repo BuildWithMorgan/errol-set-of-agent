@@ -11,6 +11,13 @@ AGENT_LABELS = {
 }
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        return float(value or default)
+    except (ValueError, TypeError):
+        return default
+
+
 def build_prompt(agent_id: str, body: dict) -> str:
     if agent_id == "rag":
         return (
@@ -40,8 +47,8 @@ def build_prompt(agent_id: str, body: dict) -> str:
 
     if agent_id == "invoice":
         f = body.get("fields", {})
-        hours = float(f.get("hours", 0) or 0)
-        rate = float(f.get("rate", 0) or 0)
+        hours = _safe_float(f.get("hours", 0))
+        rate = _safe_float(f.get("rate", 0))
         total_ht = hours * rate
         tva = total_ht * 0.20
         total_ttc = total_ht + tva
@@ -87,7 +94,7 @@ def build_prompt(agent_id: str, body: dict) -> str:
             f"Sujet : {body.get('input', '')}"
         )
 
-    return body.get("input", "")
+    raise ValueError(f"Unknown agent_id: {agent_id!r}")
 
 
 def build_input_summary(agent_id: str, body: dict) -> str:

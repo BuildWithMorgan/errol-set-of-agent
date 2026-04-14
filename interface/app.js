@@ -92,7 +92,7 @@ async function runAgent(agentId) {
   resultText.textContent  = 'Génération en cours…';
   resultText.className    = 'result-text loading';
 
-  const submitBtn = resultBox.previousElementSibling.querySelector('.btn-primary');
+  const submitBtn = document.querySelector(`#agent-${agentId} .btn-primary`);
   if (submitBtn) submitBtn.disabled = true;
 
   try {
@@ -117,6 +117,11 @@ async function runAgent(agentId) {
       for (const line of chunk.split('\n').filter(l => l.trim())) {
         try {
           const data = JSON.parse(line);
+          if (data.error) {
+            resultText.textContent = `Erreur : Ollama est inaccessible. Vérifiez que le service est actif.\n\nDétail : ${data.message}`;
+            resultText.className = 'result-text';
+            break;
+          }
           if (data.response) resultText.textContent += data.response;
         } catch { /* partial chunk */ }
       }

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import uuid
@@ -11,6 +12,8 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from prompts import build_prompt, build_input_summary, AGENT_LABELS
+
+_history_lock = asyncio.Lock()
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -57,38 +60,46 @@ async def generate(request: Request):
     if not agent_id:
         raise HTTPException(status_code=400, detail="agent is required")
 
-    prompt = build_prompt(agent_id, body)
+    try:
+        prompt = build_prompt(agent_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     async def stream_and_save() -> AsyncGenerator[bytes, None]:
         full_output: list[str] = []
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST",
-                f"{OLLAMA_URL}/api/generate",
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": True},
-            ) as response:
-                async for line in response.aiter_lines():
-                    if line:
-                        yield (line + "\n").encode()
-                        try:
-                            chunk = json.loads(line)
-                            if chunk.get("response"):
-                                full_output.append(chunk["response"])
-                        except json.JSONDecodeError:
-                            pass
-
-        output_text = "".join(full_output)
-        if output_text:
-            history = read_json(HISTORY_FILE)
-            history.insert(0, {
-                "id": str(uuid.uuid4()),
-                "agent": agent_id,
-                "agent_label": AGENT_LABELS.get(agent_id, agent_id),
-                "input": build_input_summary(agent_id, body),
-                "output": output_text,
-                "created_at": datetime.now().isoformat(),
-            })
-            write_json(HISTORY_FILE, history)
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_URL}/api/generate",
+                    json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": True},
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line:
+                            yield (line + "\n").encode()
+                            try:
+                                chunk = json.loads(line)
+                                if chunk.get("response"):
+                                    full_output.append(chunk["response"])
+                            except json.JSONDecodeError:
+                                pass
+        except Exception as e:
+            error_line = json.dumps({"error": True, "message": str(e)})
+            yield (error_line + "\n").encode()
+        finally:
+            output_text = "".join(full_output)
+            if output_text:
+                async with _history_lock:
+                    history = read_json(HISTORY_FILE)
+                    history.insert(0, {
+                        "id": str(uuid.uuid4()),
+                        "agent": agent_id,
+                        "agent_label": AGENT_LABELS.get(agent_id, agent_id),
+                        "input": build_input_summary(agent_id, body),
+                        "output": output_text,
+                        "created_at": datetime.now().isoformat(),
+                    })
+                    write_json(HISTORY_FILE, history)
 
     return StreamingResponse(stream_and_save(), media_type="text/plain")
 
