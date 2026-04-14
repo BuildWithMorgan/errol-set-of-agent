@@ -1,5 +1,35 @@
+# Secrets
 .env
+
+# Data (large/generated, not for git)
 data/index/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+dist/
+build/
+*.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
