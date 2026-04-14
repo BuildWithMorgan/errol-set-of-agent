@@ -544,3 +544,27 @@ textarea::placeholder {
   border-top: 1px solid var(--gray-3);
   padding: 6px 8px;
 }
+
+/* ─── Feedback row ───────────────────────────────────────── */
+.feedback-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--gray-5);
+}
+
+.feedback-question { flex-shrink: 0; }
+
+.feedback-btn {
+  background: none;
+  border: 1px solid var(--gray-3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.feedback-btn:hover  { border-color: var(--blue); background: var(--blue-lt); }
+.feedback-btn.active { border-color: var(--blue); background: var(--blue-lt); }

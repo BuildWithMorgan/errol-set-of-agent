@@ -98,3 +98,25 @@ def test_delete_template_not_found(tmp_path, monkeypatch):
     (tmp_path / "templates.json").write_text("[]")
     response = client.delete("/api/templates/nonexistent")
     assert response.status_code == 404
+
+
+def test_post_feedback_up(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.FEEDBACK_FILE", tmp_path / "feedback.json")
+    (tmp_path / "feedback.json").write_text("[]")
+    response = client.post("/api/feedback", json={"agent": "letter", "rating": "up"})
+    assert response.status_code == 201
+    assert response.json()["rating"] == "up"
+
+
+def test_post_feedback_invalid_rating(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.FEEDBACK_FILE", tmp_path / "feedback.json")
+    (tmp_path / "feedback.json").write_text("[]")
+    response = client.post("/api/feedback", json={"agent": "letter", "rating": "meh"})
+    assert response.status_code == 400
+
+
+def test_post_feedback_invalid_agent(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.FEEDBACK_FILE", tmp_path / "feedback.json")
+    (tmp_path / "feedback.json").write_text("[]")
+    response = client.post("/api/feedback", json={"agent": "unknown", "rating": "up"})
+    assert response.status_code == 400

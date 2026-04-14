@@ -152,6 +152,29 @@ def delete_template(template_id: str):
         raise HTTPException(status_code=404, detail="Template not found")
     write_json(TEMPLATES_FILE, updated)
 
+# ─── Feedback ─────────────────────────────────────────────────────────────────
+
+@app.post("/api/feedback", status_code=201)
+async def post_feedback(request: Request):
+    body   = await request.json()
+    agent  = body.get("agent", "").strip()
+    rating = body.get("rating", "").strip()
+    if agent not in AGENT_LABELS:
+        raise HTTPException(status_code=400, detail="invalid agent")
+    if rating not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="rating must be 'up' or 'down'")
+    feedback = read_json(FEEDBACK_FILE)
+    entry = {
+        "id":         str(uuid.uuid4()),
+        "history_id": body.get("history_id", ""),
+        "agent":      agent,
+        "rating":     rating,
+        "created_at": datetime.now().isoformat(),
+    }
+    feedback.append(entry)
+    write_json(FEEDBACK_FILE, feedback)
+    return entry
+
 # ─── Static files (must come last so /api routes are matched first) ───────────
 
 app.mount("/", StaticFiles(directory="interface", html=True), name="static")

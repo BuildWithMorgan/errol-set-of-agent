@@ -131,11 +131,38 @@ async function runAgent(agentId) {
     // Show save-template button
     const footer = document.getElementById(`${agentId}-result-footer`);
     if (footer) footer.style.display = 'block';
+
+    // Show feedback row and reset thumbs
+    const feedbackRow = document.getElementById(`${agentId}-feedback-row`);
+    if (feedbackRow) {
+      feedbackRow.style.display = 'flex';
+      document.getElementById(`${agentId}-thumb-up`)?.classList.remove('active');
+      document.getElementById(`${agentId}-thumb-down`)?.classList.remove('active');
+    }
   } catch (err) {
     resultText.textContent = `Erreur : impossible de contacter le serveur.\n\nDétail : ${err.message}`;
     resultText.className   = 'result-text';
   } finally {
     if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+async function sendFeedback(agentId, rating) {
+  const thumbUp   = document.getElementById(`${agentId}-thumb-up`);
+  const thumbDown = document.getElementById(`${agentId}-thumb-down`);
+  if (thumbUp)   thumbUp.classList.remove('active');
+  if (thumbDown) thumbDown.classList.remove('active');
+  const activeBtn = rating === 'up' ? thumbUp : thumbDown;
+  if (activeBtn) activeBtn.classList.add('active');
+  try {
+    await fetch('/api/feedback', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ agent: agentId, rating }),
+    });
+  } catch (e) {
+    console.error('Feedback error:', e);
   }
 }
 

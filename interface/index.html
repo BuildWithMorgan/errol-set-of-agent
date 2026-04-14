@@ -112,6 +112,11 @@
             <button class="btn-save-template" onclick="promptSaveTemplate('rag')">＋ Sauvegarder ce modèle</button>
           </div>
         </div>
+        <div class="feedback-row" id="rag-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="rag-thumb-up"   onclick="sendFeedback('rag', 'up')">👍</button>
+          <button class="feedback-btn" id="rag-thumb-down" onclick="sendFeedback('rag', 'down')">👎</button>
+        </div>
       </section>
 
       <!-- Agent: Rédiger un courrier -->
@@ -133,6 +138,11 @@
           <div class="result-footer" id="letter-result-footer" style="display:none">
             <button class="btn-save-template" onclick="promptSaveTemplate('letter')">＋ Sauvegarder ce modèle</button>
           </div>
+        </div>
+        <div class="feedback-row" id="letter-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="letter-thumb-up"   onclick="sendFeedback('letter', 'up')">👍</button>
+          <button class="feedback-btn" id="letter-thumb-down" onclick="sendFeedback('letter', 'down')">👎</button>
         </div>
       </section>
 
@@ -163,6 +173,11 @@
             <button class="btn-save-template" onclick="promptSaveTemplate('summary')">＋ Sauvegarder ce modèle</button>
           </div>
         </div>
+        <div class="feedback-row" id="summary-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="summary-thumb-up"   onclick="sendFeedback('summary', 'up')">👍</button>
+          <button class="feedback-btn" id="summary-thumb-down" onclick="sendFeedback('summary', 'down')">👎</button>
+        </div>
       </section>
 
       <!-- Agent: Générer une facture -->
@@ -185,6 +200,11 @@
             <button class="btn-save-template" onclick="promptSaveTemplate('invoice')">＋ Sauvegarder ce modèle</button>
           </div>
         </div>
+        <div class="feedback-row" id="invoice-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="invoice-thumb-up"   onclick="sendFeedback('invoice', 'up')">👍</button>
+          <button class="feedback-btn" id="invoice-thumb-down" onclick="sendFeedback('invoice', 'down')">👎</button>
+        </div>
       </section>
 
       <!-- Agent: Préparer une audience -->
@@ -206,6 +226,11 @@
           <div class="result-footer" id="hearing-result-footer" style="display:none">
             <button class="btn-save-template" onclick="promptSaveTemplate('hearing')">＋ Sauvegarder ce modèle</button>
           </div>
+        </div>
+        <div class="feedback-row" id="hearing-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="hearing-thumb-up"   onclick="sendFeedback('hearing', 'up')">👍</button>
+          <button class="feedback-btn" id="hearing-thumb-down" onclick="sendFeedback('hearing', 'down')">👎</button>
         </div>
       </section>
 
@@ -232,6 +257,11 @@
           <div class="result-footer" id="content-result-footer" style="display:none">
             <button class="btn-save-template" onclick="promptSaveTemplate('content')">＋ Sauvegarder ce modèle</button>
           </div>
+        </div>
+        <div class="feedback-row" id="content-feedback-row" style="display:none">
+          <span class="feedback-question">Cette réponse était-elle utile ?</span>
+          <button class="feedback-btn" id="content-thumb-up"   onclick="sendFeedback('content', 'up')">👍</button>
+          <button class="feedback-btn" id="content-thumb-down" onclick="sendFeedback('content', 'down')">👎</button>
         </div>
       </section>
 
