@@ -103,6 +103,15 @@ async def generate(request: Request):
 
     return StreamingResponse(stream_and_save(), media_type="text/plain")
 
+# ─── History ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/history")
+def get_history(agent: str = None, limit: int = 20):
+    history = read_json(HISTORY_FILE)
+    if agent:
+        history = [h for h in history if h["agent"] == agent]
+    return history[:limit]
+
 # ─── Templates stub (full implementation in Task 4) ───────────────────────────
 
 @app.get("/api/templates")
