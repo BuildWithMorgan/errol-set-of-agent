@@ -97,6 +97,7 @@
         <p class="agent-section-label">Dossiers clients</p>
         <h1 class="agent-title">Interroger mes dossiers</h1>
         <p class="agent-desc">Posez une question en langage naturel sur vos dossiers clients, actes archivés ou correspondances.</p>
+        <div class="template-pills" id="rag-templates"></div>
         <div class="input-card">
           <textarea id="rag-input" rows="4" placeholder="Ex : Quelles sont les obligations du comité de mission dans le dossier Dupont ?"></textarea>
           <button class="btn-primary" onclick="runAgent('rag')">Interroger</button>
@@ -107,6 +108,9 @@
             <button class="btn-copy" onclick="copyResult('rag-result-text')">Copier</button>
           </div>
           <div class="result-text" id="rag-result-text"></div>
+          <div class="result-footer" id="rag-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('rag')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 
@@ -115,6 +119,7 @@
         <p class="agent-section-label">Rédaction juridique</p>
         <h1 class="agent-title">Rédiger un courrier</h1>
         <p class="agent-desc">Décrivez votre besoin en langage naturel — l'agent rédige le courrier juridique complet, prêt à envoyer.</p>
+        <div class="template-pills" id="letter-templates"></div>
         <div class="input-card">
           <textarea id="letter-input" rows="4" placeholder="Ex : Rédige un courrier de mise en demeure pour la société Martin concernant le non-respect des statuts."></textarea>
           <button class="btn-primary" onclick="runAgent('letter')">Rédiger</button>
@@ -125,6 +130,9 @@
             <button class="btn-copy" onclick="copyResult('letter-result-text')">Copier</button>
           </div>
           <div class="result-text" id="letter-result-text"></div>
+          <div class="result-footer" id="letter-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('letter')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 
@@ -133,6 +141,7 @@
         <p class="agent-section-label">Analyse documentaire</p>
         <h1 class="agent-title">Résumer un document</h1>
         <p class="agent-desc">Déposez un fichier ou collez le texte pour obtenir un résumé structuré en 5 points clés.</p>
+        <div class="template-pills" id="summary-templates"></div>
         <div class="input-card">
           <div class="drop-zone" id="summary-drop"
             ondragover="event.preventDefault(); this.classList.add('drag-over')"
@@ -150,6 +159,9 @@
             <button class="btn-copy" onclick="copyResult('summary-result-text')">Copier</button>
           </div>
           <div class="result-text" id="summary-result-text"></div>
+          <div class="result-footer" id="summary-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('summary')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 
@@ -158,6 +170,7 @@
         <p class="agent-section-label">Facturation</p>
         <h1 class="agent-title">Générer une facture</h1>
         <p class="agent-desc">Décrivez la prestation en langage naturel — l'agent génère une facture complète avec tous les champs légaux.</p>
+        <div class="template-pills" id="invoice-templates"></div>
         <div class="input-card">
           <textarea id="invoice-input" rows="4" placeholder="Ex : Facture pour 3h de conseil en transformation société à mission pour la société ABC à 350 €/h"></textarea>
           <button class="btn-primary" onclick="runAgent('invoice')">Générer</button>
@@ -168,6 +181,9 @@
             <button class="btn-copy" onclick="copyResult('invoice-result-text')">Copier</button>
           </div>
           <div class="result-text" id="invoice-result-text"></div>
+          <div class="result-footer" id="invoice-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('invoice')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 
@@ -176,6 +192,7 @@
         <p class="agent-section-label">Plaidoirie</p>
         <h1 class="agent-title">Préparer une audience</h1>
         <p class="agent-desc">Obtenez une fiche d'arguments structurée avant une audience : litige, points de droit, contre-arguments.</p>
+        <div class="template-pills" id="hearing-templates"></div>
         <div class="input-card">
           <textarea id="hearing-input" rows="4" placeholder="Ex : Prépare un résumé des arguments pour l'audience du 15 avril dans le dossier Legrand"></textarea>
           <button class="btn-primary" onclick="runAgent('hearing')">Préparer</button>
@@ -186,6 +203,9 @@
             <button class="btn-copy" onclick="copyResult('hearing-result-text')">Copier</button>
           </div>
           <div class="result-text" id="hearing-result-text"></div>
+          <div class="result-footer" id="hearing-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('hearing')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 
@@ -194,6 +214,7 @@
         <p class="agent-section-label">Communication</p>
         <h1 class="agent-title">Créer du contenu</h1>
         <p class="agent-desc">Générez un post LinkedIn ou un article juridique dans votre style éditorial.</p>
+        <div class="template-pills" id="content-templates"></div>
         <div class="input-card">
           <div class="content-type-selector">
             <label><input type="radio" name="content-type" value="linkedin" checked /> Post LinkedIn</label>
@@ -208,6 +229,9 @@
             <button class="btn-copy" onclick="copyResult('content-result-text')">Copier</button>
           </div>
           <div class="result-text" id="content-result-text"></div>
+          <div class="result-footer" id="content-result-footer" style="display:none">
+            <button class="btn-save-template" onclick="promptSaveTemplate('content')">＋ Sauvegarder ce modèle</button>
+          </div>
         </div>
       </section>
 

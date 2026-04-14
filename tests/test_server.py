@@ -59,3 +59,42 @@ def test_get_history_limit(tmp_path, monkeypatch):
     (tmp_path / "history.json").write_text(json.dumps(entries))
     response = client.get("/api/history?limit=5")
     assert len(response.json()) == 5
+
+
+def test_create_template(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.TEMPLATES_FILE", tmp_path / "templates.json")
+    (tmp_path / "templates.json").write_text("[]")
+    response = client.post("/api/templates", json={
+        "agent": "letter",
+        "label": "Mise en demeure standard",
+        "prompt": "Rédige une mise en demeure pour...",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["agent"] == "letter"
+    assert "id" in data
+
+
+def test_create_template_missing_fields(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.TEMPLATES_FILE", tmp_path / "templates.json")
+    (tmp_path / "templates.json").write_text("[]")
+    response = client.post("/api/templates", json={"agent": "letter"})
+    assert response.status_code == 400
+
+
+def test_delete_template(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.TEMPLATES_FILE", tmp_path / "templates.json")
+    (tmp_path / "templates.json").write_text(json.dumps([
+        {"id": "abc", "agent": "letter", "label": "Test", "prompt": "...", "created_at": "2026-01-01"}
+    ]))
+    response = client.delete("/api/templates/abc")
+    assert response.status_code == 204
+    remaining = json.loads((tmp_path / "templates.json").read_text())
+    assert remaining == []
+
+
+def test_delete_template_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.TEMPLATES_FILE", tmp_path / "templates.json")
+    (tmp_path / "templates.json").write_text("[]")
+    response = client.delete("/api/templates/nonexistent")
+    assert response.status_code == 404

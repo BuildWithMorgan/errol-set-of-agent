@@ -492,3 +492,55 @@ textarea::placeholder {
   font-size: 13px;
   color: var(--gray-4);
 }
+
+/* ─── Template pills ─────────────────────────────────────── */
+.template-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 0;
+}
+.template-pills:empty { display: none; }
+
+.template-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--gray-3);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--black);
+  background: var(--white);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.template-pill:hover { border-color: var(--blue); background: var(--blue-lt); }
+
+.template-pill-delete {
+  color: var(--gray-4);
+  font-size: 14px;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.template-pill-delete:hover { color: #EF4444; }
+
+.btn-save-template {
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 10px 16px;
+}
+.btn-save-template:hover { text-decoration: underline; }
+
+.result-footer {
+  border-top: 1px solid var(--gray-3);
+  padding: 6px 8px;
+}

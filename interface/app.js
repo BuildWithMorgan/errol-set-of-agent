@@ -7,6 +7,7 @@ document.querySelectorAll('.agent-btn').forEach(btn => {
     document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
     document.getElementById(`agent-${id}`).classList.add('active');
     if (id === 'dashboard') loadDashboard();
+    else loadTemplates(id);
   });
 });
 
@@ -127,6 +128,9 @@ async function runAgent(agentId) {
         } catch { /* partial chunk */ }
       }
     }
+    // Show save-template button
+    const footer = document.getElementById(`${agentId}-result-footer`);
+    if (footer) footer.style.display = 'block';
   } catch (err) {
     resultText.textContent = `Erreur : impossible de contacter le serveur.\n\nDétail : ${err.message}`;
     resultText.className   = 'result-text';
@@ -173,6 +177,50 @@ document.querySelectorAll('.drop-zone').forEach(zone => {
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
   zone.addEventListener('drop',      () => zone.classList.remove('drag-over'));
 });
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+async function loadTemplates(agentId) {
+  const container = document.getElementById(`${agentId}-templates`);
+  if (!container) return;
+  try {
+    const res       = await fetch(`/api/templates?agent=${agentId}`);
+    const templates = await res.json();
+    container.innerHTML = templates.map(t => `
+      <span class="template-pill" onclick="applyTemplate('${agentId}', ${JSON.stringify(JSON.stringify(t.prompt))})">
+        📌 ${escapeHtml(t.label)}
+        <button class="template-pill-delete" onclick="deleteTemplate(event, '${escapeHtml(t.id)}', '${agentId}')">✕</button>
+      </span>
+    `).join('');
+  } catch (e) {
+    console.error('loadTemplates error:', e);
+  }
+}
+
+function applyTemplate(agentId, promptJson) {
+  const prompt  = JSON.parse(promptJson);
+  const inputEl = document.getElementById(`${agentId}-input`);
+  if (inputEl) inputEl.value = prompt;
+}
+
+async function deleteTemplate(event, id, agentId) {
+  event.stopPropagation();
+  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+  loadTemplates(agentId);
+}
+
+async function promptSaveTemplate(agentId) {
+  const inputEl = document.getElementById(`${agentId}-input`);
+  const prompt  = inputEl?.value?.trim();
+  if (!prompt) return;
+  const label = window.prompt('Nom du modèle :', prompt.slice(0, 40));
+  if (!label) return;
+  await fetch('/api/templates', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ agent: agentId, label, prompt }),
+  });
+  loadTemplates(agentId);
+}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 function relativeTime(isoString) {

@@ -113,7 +113,7 @@ def get_history(agent: Optional[str] = None, limit: int = 20):
         history = [h for h in history if h["agent"] == agent]
     return history[:limit]
 
-# ─── Templates stub (full implementation in Task 4) ───────────────────────────
+# ─── Templates ────────────────────────────────────────────────────────────────
 
 @app.get("/api/templates")
 def get_templates(agent: Optional[str] = None):
@@ -121,6 +121,36 @@ def get_templates(agent: Optional[str] = None):
     if agent:
         templates = [t for t in templates if t["agent"] == agent]
     return templates
+
+
+@app.post("/api/templates", status_code=201)
+async def create_template(request: Request):
+    body = await request.json()
+    agent  = body.get("agent", "").strip()
+    label  = body.get("label", "").strip()
+    prompt = body.get("prompt", "").strip()
+    if not agent or not label or not prompt:
+        raise HTTPException(status_code=400, detail="agent, label and prompt are required")
+    templates = read_json(TEMPLATES_FILE)
+    entry = {
+        "id":         str(uuid.uuid4()),
+        "agent":      agent,
+        "label":      label,
+        "prompt":     prompt,
+        "created_at": datetime.now().isoformat(),
+    }
+    templates.append(entry)
+    write_json(TEMPLATES_FILE, templates)
+    return entry
+
+
+@app.delete("/api/templates/{template_id}", status_code=204)
+def delete_template(template_id: str):
+    templates = read_json(TEMPLATES_FILE)
+    updated = [t for t in templates if t["id"] != template_id]
+    if len(updated) == len(templates):
+        raise HTTPException(status_code=404, detail="Template not found")
+    write_json(TEMPLATES_FILE, updated)
 
 # ─── Static files (must come last so /api routes are matched first) ───────────
 
