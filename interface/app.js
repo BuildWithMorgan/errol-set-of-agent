@@ -1,118 +1,109 @@
-// ─── Config ──────────────────────────────────────────────────────────────────
-const OLLAMA_URL   = 'http://localhost:11434';
-const OLLAMA_MODEL = 'gemma4:e4b';
-
-// ─── Agent config ─────────────────────────────────────────────────────────────
-const AGENTS = {
-  rag: {
-    endpoint: '/api/generate',
-    buildPrompt: (input) =>
-      `Tu es l'assistant juridique du cabinet Le Play Avocats. Réponds en français à la question suivante en t'appuyant sur les documents disponibles. Cite les sources si possible.\n\nQuestion : ${input}`,
-  },
-  letter: {
-    endpoint: '/api/generate',
-    buildPrompt: (input) =>
-      `Tu es un avocat expert en droit des sociétés. Rédige en français un courrier juridique professionnel basé sur la description suivante. Respecte les conventions formelles françaises.\n\nDemande : ${input}`,
-  },
-  summary: {
-    endpoint: '/api/generate',
-    buildPrompt: (input) =>
-      `Tu es un assistant juridique. Résume le document suivant en français en 5 points clés structurés avec des titres clairs.\n\nDocument :\n${input}`,
-  },
-  invoice: {
-    endpoint: '/api/generate',
-    buildPrompt: (input) =>
-      `Tu es l'assistant du cabinet Le Play Avocats. Génère une facture complète en français avec tous les champs légaux requis (numéro, date, émetteur, destinataire, détail des prestations, TVA, total TTC) à partir de la description suivante.\n\nDescription : ${input}`,
-  },
-  hearing: {
-    endpoint: '/api/generate',
-    buildPrompt: (input) =>
-      `Tu es un avocat préparant une audience. Rédige en français une fiche d'audience structurée avec : résumé du litige, arguments principaux, points de droit à soulever, réponses aux contre-arguments prévisibles.\n\nDemande : ${input}`,
-  },
-  content: {
-    endpoint: '/api/generate',
-    buildPrompt: (input, type) => {
-      if (type === 'linkedin') {
-        return `Tu es Errol Cohen, avocat spécialisé en sociétés à mission. Rédige en français un post LinkedIn engageant dans ton style : ton d'expert accessible, phrases courtes, appel à l'action final. Sujet : ${input}`;
-      }
-      return `Tu es Errol Cohen, avocat spécialisé en sociétés à mission. Rédige en français un article juridique structuré (introduction, développement, conclusion) sur le sujet suivant : ${input}`;
-    },
-  },
-};
-
-// ─── Ollama status check ──────────────────────────────────────────────────────
-async function checkOllamaStatus() {
-  const dot   = document.getElementById('status-dot');
-  const label = document.getElementById('status-label');
-  try {
-    const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    if (res.ok) {
-      dot.className   = 'status-dot online';
-      label.textContent = 'Ollama actif';
-    } else {
-      throw new Error();
-    }
-  } catch {
-    dot.className   = 'status-dot offline';
-    label.textContent = 'Ollama hors ligne';
-  }
-}
-
 // ─── Agent switching ──────────────────────────────────────────────────────────
 document.querySelectorAll('.agent-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.agent;
-
-    // Update sidebar active state
     document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-
-    // Show the correct view
     document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
     document.getElementById(`agent-${id}`).classList.add('active');
   });
 });
 
+// ─── Ollama status (via server) ───────────────────────────────────────────────
+async function checkOllamaStatus() {
+  const dot   = document.getElementById('status-dot');
+  const label = document.getElementById('status-label');
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (data.online) {
+      dot.className     = 'status-dot online';
+      label.textContent = 'Ollama actif';
+    } else {
+      throw new Error('offline');
+    }
+  } catch {
+    dot.className     = 'status-dot offline';
+    label.textContent = 'Ollama hors ligne';
+  }
+}
+
+// ─── Collect input for each agent ────────────────────────────────────────────
+function collectInput(agentId) {
+  if (agentId === 'letter') {
+    return {
+      agent: 'letter',
+      fields: {
+        recipient:   document.getElementById('letter-recipient')?.value.trim() || '',
+        letter_type: document.getElementById('letter-type')?.value || 'mise en demeure',
+        subject:     document.getElementById('letter-subject')?.value.trim() || '',
+        facts:       document.getElementById('letter-facts')?.value.trim() || '',
+      }
+    };
+  }
+  if (agentId === 'invoice') {
+    return {
+      agent: 'invoice',
+      fields: {
+        client:      document.getElementById('invoice-client')?.value.trim() || '',
+        date:        document.getElementById('invoice-date')?.value.trim() || '',
+        hours:       document.getElementById('invoice-hours')?.value.trim() || '',
+        rate:        document.getElementById('invoice-rate')?.value.trim() || '',
+        description: document.getElementById('invoice-description')?.value.trim() || '',
+      }
+    };
+  }
+  if (agentId === 'hearing') {
+    return {
+      agent: 'hearing',
+      fields: {
+        case_name:    document.getElementById('hearing-case')?.value.trim() || '',
+        hearing_date: document.getElementById('hearing-date')?.value.trim() || '',
+        parties:      document.getElementById('hearing-parties')?.value.trim() || '',
+        arguments:    document.getElementById('hearing-arguments')?.value.trim() || '',
+      }
+    };
+  }
+  if (agentId === 'content') {
+    return {
+      agent: 'content',
+      input:        document.getElementById('content-input')?.value.trim() || '',
+      content_type: document.querySelector('input[name="content-type"]:checked')?.value || 'linkedin',
+    };
+  }
+  return {
+    agent: agentId,
+    input: document.getElementById(`${agentId}-input`)?.value.trim() || '',
+  };
+}
+
 // ─── Run agent ────────────────────────────────────────────────────────────────
 async function runAgent(agentId) {
-  const input     = document.getElementById(`${agentId}-input`).value.trim();
-  const resultBox = document.getElementById(`${agentId}-result`);
+  const body       = collectInput(agentId);
+  const resultBox  = document.getElementById(`${agentId}-result`);
   const resultText = document.getElementById(`${agentId}-result-text`);
 
-  if (!input) return;
+  const hasInput = body.input
+    ? body.input.length > 0
+    : Object.values(body.fields || {}).some(v => v.length > 0);
+  if (!hasInput) return;
 
-  // Extra param for content type
-  let contentType = 'linkedin';
-  if (agentId === 'content') {
-    contentType = document.querySelector('input[name="content-type"]:checked').value;
-  }
+  resultBox.style.display = 'block';
+  resultText.textContent  = 'Génération en cours…';
+  resultText.className    = 'result-text loading';
 
-  const agent  = AGENTS[agentId];
-  const prompt = agent.buildPrompt(input, contentType);
-
-  // Show loading state
-  resultBox.style.display  = 'block';
-  resultText.textContent   = 'Génération en cours…';
-  resultText.className     = 'result-text loading';
-
-  // Disable button while generating
-  const btn = resultBox.previousElementSibling.querySelector('.btn-primary');
-  if (btn) btn.disabled = true;
+  const submitBtn = resultBox.previousElementSibling.querySelector('.btn-primary');
+  if (submitBtn) submitBtn.disabled = true;
 
   try {
-    const response = await fetch(`${OLLAMA_URL}${agent.endpoint}`, {
+    const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model:  OLLAMA_MODEL,
-        prompt: prompt,
-        stream: true,
-      }),
+      body: JSON.stringify(body),
     });
 
-    if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
+    if (!response.ok) throw new Error(`Erreur serveur : ${response.status}`);
 
-    // Stream response
     resultText.textContent = '';
     resultText.className   = 'result-text';
 
@@ -122,34 +113,26 @@ async function runAgent(agentId) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(l => l.trim());
-
-      for (const line of lines) {
+      for (const line of chunk.split('\n').filter(l => l.trim())) {
         try {
           const data = JSON.parse(line);
-          if (data.response) {
-            resultText.textContent += data.response;
-            // Auto-scroll to bottom of result
-            resultText.scrollTop = resultText.scrollHeight;
-          }
-        } catch { /* partial JSON chunk, skip */ }
+          if (data.response) resultText.textContent += data.response;
+        } catch { /* partial chunk */ }
       }
     }
   } catch (err) {
-    resultText.textContent = `Erreur : impossible de contacter Ollama. Vérifiez que le service est actif.\n\nDétail : ${err.message}`;
+    resultText.textContent = `Erreur : impossible de contacter le serveur.\n\nDétail : ${err.message}`;
     resultText.className   = 'result-text';
   } finally {
-    if (btn) btn.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
 // ─── Copy result ──────────────────────────────────────────────────────────────
 function copyResult(elementId) {
   const el = document.getElementById(elementId);
-  if (!el || !el.textContent) return;
-
+  if (!el?.textContent) return;
   navigator.clipboard.writeText(el.textContent).then(() => {
     const btn = el.closest('.result-area').querySelector('.btn-copy');
     const original = btn.textContent;
@@ -158,37 +141,33 @@ function copyResult(elementId) {
   });
 }
 
-// ─── File drop / upload (summary agent) ──────────────────────────────────────
+// ─── File drop / upload ───────────────────────────────────────────────────────
 function handleDrop(event, agentId) {
   event.preventDefault();
   const file = event.dataTransfer.files[0];
   if (file) readFileToTextarea(file, agentId);
 }
-
 function handleFile(event, agentId) {
   const file = event.target.files[0];
   if (file) readFileToTextarea(file, agentId);
 }
-
 function readFileToTextarea(file, agentId) {
   const textarea = document.getElementById(`${agentId}-input`);
   if (file.type === 'text/plain') {
     const reader = new FileReader();
-    reader.onload = (e) => { textarea.value = e.target.result; };
+    reader.onload = e => { textarea.value = e.target.result; };
     reader.readAsText(file);
   } else {
-    // For PDF/Word, show the filename — actual parsing requires the Python tool
-    textarea.value = `[Fichier chargé : ${file.name}]\n\nLe traitement des fichiers PDF et Word nécessite l'outil Python. Collez le texte extrait ici en attendant l'intégration complète.`;
+    textarea.value = `[Fichier : ${file.name}]\n\nCollez le texte extrait ici.`;
   }
 }
 
-// ─── Drag-over highlight ──────────────────────────────────────────────────────
 document.querySelectorAll('.drop-zone').forEach(zone => {
-  zone.addEventListener('dragover', () => zone.classList.add('drag-over'));
+  zone.addEventListener('dragover',  () => zone.classList.add('drag-over'));
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop',      () => zone.classList.remove('drag-over'));
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 checkOllamaStatus();
-setInterval(checkOllamaStatus, 30000); // re-check every 30s
+setInterval(checkOllamaStatus, 30000);
