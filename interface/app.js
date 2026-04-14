@@ -168,7 +168,9 @@ async function exportResult(agentId, format) {
                       || `leplay-export.${format}`;
     a.href     = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (e) {
     alert(`Erreur lors de l'export : ${e.message}`);
