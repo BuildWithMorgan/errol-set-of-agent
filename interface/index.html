@@ -126,7 +126,31 @@
         <p class="agent-desc">Décrivez votre besoin en langage naturel — l'agent rédige le courrier juridique complet, prêt à envoyer.</p>
         <div class="template-pills" id="letter-templates"></div>
         <div class="input-card">
-          <textarea id="letter-input" rows="4" placeholder="Ex : Rédige un courrier de mise en demeure pour la société Martin concernant le non-respect des statuts."></textarea>
+          <div class="guided-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-label">Destinataire *</label>
+                <input class="form-input" id="letter-recipient" type="text" placeholder="Société Martin" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Type de courrier *</label>
+                <select class="form-input" id="letter-type">
+                  <option value="mise en demeure">Mise en demeure</option>
+                  <option value="notification">Notification</option>
+                  <option value="relance">Relance</option>
+                  <option value="information">Courrier d'information</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Objet *</label>
+              <input class="form-input" id="letter-subject" type="text" placeholder="Non-respect des statuts de la société à mission" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Faits et éléments clés</label>
+              <textarea class="form-input" id="letter-facts" rows="3" placeholder="Décrivez les faits, dates, obligations non respectées…"></textarea>
+            </div>
+          </div>
           <button class="btn-primary" onclick="runAgent('letter')">Rédiger</button>
         </div>
         <div class="result-area" id="letter-result" style="display:none">
@@ -187,7 +211,32 @@
         <p class="agent-desc">Décrivez la prestation en langage naturel — l'agent génère une facture complète avec tous les champs légaux.</p>
         <div class="template-pills" id="invoice-templates"></div>
         <div class="input-card">
-          <textarea id="invoice-input" rows="4" placeholder="Ex : Facture pour 3h de conseil en transformation société à mission pour la société ABC à 350 €/h"></textarea>
+          <div class="guided-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-label">Nom du client *</label>
+                <input class="form-input" id="invoice-client" type="text" placeholder="Société ABC" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Date de la prestation *</label>
+                <input class="form-input" id="invoice-date" type="text" placeholder="14/04/2026" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-label">Nombre d'heures *</label>
+                <input class="form-input" id="invoice-hours" type="number" min="0" step="0.5" placeholder="3" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Taux horaire (€) *</label>
+                <input class="form-input" id="invoice-rate" type="number" min="0" placeholder="350" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Description de la prestation</label>
+              <input class="form-input" id="invoice-description" type="text" placeholder="Conseil en transformation société à mission" />
+            </div>
+          </div>
           <button class="btn-primary" onclick="runAgent('invoice')">Générer</button>
         </div>
         <div class="result-area" id="invoice-result" style="display:none">
@@ -214,7 +263,26 @@
         <p class="agent-desc">Obtenez une fiche d'arguments structurée avant une audience : litige, points de droit, contre-arguments.</p>
         <div class="template-pills" id="hearing-templates"></div>
         <div class="input-card">
-          <textarea id="hearing-input" rows="4" placeholder="Ex : Prépare un résumé des arguments pour l'audience du 15 avril dans le dossier Legrand"></textarea>
+          <div class="guided-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-label">Nom du dossier *</label>
+                <input class="form-input" id="hearing-case" type="text" placeholder="Dossier Legrand" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Date d'audience *</label>
+                <input class="form-input" id="hearing-date" type="text" placeholder="15/04/2026" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Parties</label>
+              <input class="form-input" id="hearing-parties" type="text" placeholder="Legrand vs Martin" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Arguments et faits principaux *</label>
+              <textarea class="form-input" id="hearing-arguments" rows="4" placeholder="Décrivez les arguments, les faits, les points de droit…"></textarea>
+            </div>
+          </div>
           <button class="btn-primary" onclick="runAgent('hearing')">Préparer</button>
         </div>
         <div class="result-area" id="hearing-result" style="display:none">

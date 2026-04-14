@@ -568,3 +568,49 @@ textarea::placeholder {
 }
 .feedback-btn:hover  { border-color: var(--blue); background: var(--blue-lt); }
 .feedback-btn.active { border-color: var(--blue); background: var(--blue-lt); }
+
+/* ─── Guided forms ───────────────────────────────────────── */
+.guided-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-5);
+}
+
+.form-input {
+  padding: 10px 12px;
+  border: 1px solid var(--gray-3);
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--black);
+  background: var(--gray-1);
+  outline: none;
+  transition: border-color .2s, background .2s;
+  width: 100%;
+}
+.form-input:focus {
+  border-color: var(--blue);
+  background: var(--white);
+}
+.form-input::placeholder { color: var(--gray-4); }
+
+select.form-input { cursor: pointer; }
+textarea.form-input { resize: vertical; }

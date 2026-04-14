@@ -236,9 +236,19 @@ async function deleteTemplate(event, id, agentId) {
 }
 
 async function promptSaveTemplate(agentId) {
-  const inputEl = document.getElementById(`${agentId}-input`);
-  const prompt  = inputEl?.value?.trim();
-  if (!prompt) return;
+  // For guided-form agents, serialize the current field values as a JSON string
+  const guidedAgents = ['letter', 'invoice', 'hearing'];
+  let prompt;
+  if (guidedAgents.includes(agentId)) {
+    const body = collectInput(agentId);
+    const hasInput = Object.values(body.fields || {}).some(v => v.length > 0);
+    if (!hasInput) return;
+    prompt = JSON.stringify(body.fields);
+  } else {
+    const inputEl = document.getElementById(`${agentId}-input`);
+    prompt = inputEl?.value?.trim();
+    if (!prompt) return;
+  }
   const label = window.prompt('Nom du modèle :', prompt.slice(0, 40));
   if (!label) return;
   await fetch('/api/templates', {
