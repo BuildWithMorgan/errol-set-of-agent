@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le Play Avocats — Assistant IA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-logo">
+      <span class="logo-text">Le Play Avocats<span class="logo-dot">.</span></span>
+      <span class="logo-sub">Assistant IA</span>
+    </div>
+    <div class="header-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-label" class="status-label">Vérification…</span>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <nav class="agent-nav">
+        <p class="nav-label">Agents</p>
+
+        <button class="agent-btn active" data-agent="rag">
+          <span class="agent-icon">🗂</span>
+          Interroger mes dossiers
+        </button>
+        <button class="agent-btn" data-agent="letter">
+          <span class="agent-icon">✉️</span>
+          Rédiger un courrier
+        </button>
+        <button class="agent-btn" data-agent="summary">
+          <span class="agent-icon">📄</span>
+          Résumer un document
+        </button>
+        <button class="agent-btn" data-agent="invoice">
+          <span class="agent-icon">🧾</span>
+          Générer une facture
+        </button>
+        <button class="agent-btn" data-agent="hearing">
+          <span class="agent-icon">⚖️</span>
+          Préparer une audience
+        </button>
+        <button class="agent-btn" data-agent="content">
+          <span class="agent-icon">✍️</span>
+          Créer du contenu
+        </button>
+      </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- Agent: Interroger mes dossiers -->
+      <section class="agent-view active" id="agent-rag">
+        <p class="agent-section-label">Dossiers clients</p>
+        <h1 class="agent-title">Interroger mes dossiers</h1>
+        <p class="agent-desc">Posez une question en langage naturel sur vos dossiers clients, actes archivés ou correspondances.</p>
+        <div class="input-card">
+          <textarea id="rag-input" rows="4" placeholder="Ex : Quelles sont les obligations du comité de mission dans le dossier Dupont ?"></textarea>
+          <button class="btn-primary" onclick="runAgent('rag')">Interroger</button>
+        </div>
+        <div class="result-area" id="rag-result" style="display:none">
+          <div class="result-header">
+            <span>Réponse</span>
+            <button class="btn-copy" onclick="copyResult('rag-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="rag-result-text"></div>
+        </div>
+      </section>
+
+      <!-- Agent: Rédiger un courrier -->
+      <section class="agent-view" id="agent-letter">
+        <p class="agent-section-label">Rédaction juridique</p>
+        <h1 class="agent-title">Rédiger un courrier</h1>
+        <p class="agent-desc">Décrivez votre besoin en langage naturel — l'agent rédige le courrier juridique complet, prêt à envoyer.</p>
+        <div class="input-card">
+          <textarea id="letter-input" rows="4" placeholder="Ex : Rédige un courrier de mise en demeure pour la société Martin concernant le non-respect des statuts."></textarea>
+          <button class="btn-primary" onclick="runAgent('letter')">Rédiger</button>
+        </div>
+        <div class="result-area" id="letter-result" style="display:none">
+          <div class="result-header">
+            <span>Courrier généré</span>
+            <button class="btn-copy" onclick="copyResult('letter-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="letter-result-text"></div>
+        </div>
+      </section>
+
+      <!-- Agent: Résumer un document -->
+      <section class="agent-view" id="agent-summary">
+        <p class="agent-section-label">Analyse documentaire</p>
+        <h1 class="agent-title">Résumer un document</h1>
+        <p class="agent-desc">Déposez un fichier ou collez le texte pour obtenir un résumé structuré en 5 points clés.</p>
+        <div class="input-card">
+          <div class="drop-zone" id="summary-drop"
+            ondragover="event.preventDefault(); this.classList.add('drag-over')"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="handleDrop(event,'summary')">
+            Glissez un fichier ici ou
+            <label class="btn-file">parcourir<input type="file" id="summary-file" accept=".pdf,.doc,.docx,.txt" onchange="handleFile(event,'summary')" /></label>
+          </div>
+          <textarea id="summary-input" rows="4" placeholder="Ou collez le texte directement ici…"></textarea>
+          <button class="btn-primary" onclick="runAgent('summary')">Résumer</button>
+        </div>
+        <div class="result-area" id="summary-result" style="display:none">
+          <div class="result-header">
+            <span>Résumé</span>
+            <button class="btn-copy" onclick="copyResult('summary-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="summary-result-text"></div>
+        </div>
+      </section>
+
+      <!-- Agent: Générer une facture -->
+      <section class="agent-view" id="agent-invoice">
+        <p class="agent-section-label">Facturation</p>
+        <h1 class="agent-title">Générer une facture</h1>
+        <p class="agent-desc">Décrivez la prestation en langage naturel — l'agent génère une facture complète avec tous les champs légaux.</p>
+        <div class="input-card">
+          <textarea id="invoice-input" rows="4" placeholder="Ex : Facture pour 3h de conseil en transformation société à mission pour la société ABC à 350 €/h"></textarea>
+          <button class="btn-primary" onclick="runAgent('invoice')">Générer</button>
+        </div>
+        <div class="result-area" id="invoice-result" style="display:none">
+          <div class="result-header">
+            <span>Facture générée</span>
+            <button class="btn-copy" onclick="copyResult('invoice-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="invoice-result-text"></div>
+        </div>
+      </section>
+
+      <!-- Agent: Préparer une audience -->
+      <section class="agent-view" id="agent-hearing">
+        <p class="agent-section-label">Plaidoirie</p>
+        <h1 class="agent-title">Préparer une audience</h1>
+        <p class="agent-desc">Obtenez une fiche d'arguments structurée avant une audience : litige, points de droit, contre-arguments.</p>
+        <div class="input-card">
+          <textarea id="hearing-input" rows="4" placeholder="Ex : Prépare un résumé des arguments pour l'audience du 15 avril dans le dossier Legrand"></textarea>
+          <button class="btn-primary" onclick="runAgent('hearing')">Préparer</button>
+        </div>
+        <div class="result-area" id="hearing-result" style="display:none">
+          <div class="result-header">
+            <span>Fiche d'audience</span>
+            <button class="btn-copy" onclick="copyResult('hearing-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="hearing-result-text"></div>
+        </div>
+      </section>
+
+      <!-- Agent: Créer du contenu -->
+      <section class="agent-view" id="agent-content">
+        <p class="agent-section-label">Communication</p>
+        <h1 class="agent-title">Créer du contenu</h1>
+        <p class="agent-desc">Générez un post LinkedIn ou un article juridique dans votre style éditorial.</p>
+        <div class="input-card">
+          <div class="content-type-selector">
+            <label><input type="radio" name="content-type" value="linkedin" checked /> Post LinkedIn</label>
+            <label><input type="radio" name="content-type" value="article" /> Article juridique</label>
+          </div>
+          <textarea id="content-input" rows="4" placeholder="Ex : Rédige un post LinkedIn sur les nouvelles obligations des sociétés à mission en 2025"></textarea>
+          <button class="btn-primary" onclick="runAgent('content')">Générer</button>
+        </div>
+        <div class="result-area" id="content-result" style="display:none">
+          <div class="result-header">
+            <span>Contenu généré</span>
+            <button class="btn-copy" onclick="copyResult('content-result-text')">Copier</button>
+          </div>
+          <div class="result-text" id="content-result-text"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
