@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -106,7 +106,7 @@ async def generate(request: Request):
 # ─── History ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/history")
-def get_history(agent: str = None, limit: int = 20):
+def get_history(agent: Optional[str] = None, limit: int = 20):
     history = read_json(HISTORY_FILE)
     if agent:
         history = [h for h in history if h["agent"] == agent]
@@ -115,7 +115,7 @@ def get_history(agent: str = None, limit: int = 20):
 # ─── Templates stub (full implementation in Task 4) ───────────────────────────
 
 @app.get("/api/templates")
-def get_templates(agent: str = None):
+def get_templates(agent: Optional[str] = None):
     templates = read_json(TEMPLATES_FILE)
     if agent:
         templates = [t for t in templates if t["agent"] == agent]
