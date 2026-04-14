@@ -105,7 +105,11 @@
         <div class="result-area" id="rag-result" style="display:none">
           <div class="result-header">
             <span>Réponse</span>
-            <button class="btn-copy" onclick="copyResult('rag-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('rag-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('rag', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('rag', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="rag-result-text"></div>
           <div class="result-footer" id="rag-result-footer" style="display:none">
@@ -156,7 +160,11 @@
         <div class="result-area" id="letter-result" style="display:none">
           <div class="result-header">
             <span>Courrier généré</span>
-            <button class="btn-copy" onclick="copyResult('letter-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('letter-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('letter', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('letter', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="letter-result-text"></div>
           <div class="result-footer" id="letter-result-footer" style="display:none">
@@ -190,7 +198,11 @@
         <div class="result-area" id="summary-result" style="display:none">
           <div class="result-header">
             <span>Résumé</span>
-            <button class="btn-copy" onclick="copyResult('summary-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('summary-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('summary', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('summary', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="summary-result-text"></div>
           <div class="result-footer" id="summary-result-footer" style="display:none">
@@ -242,7 +254,11 @@
         <div class="result-area" id="invoice-result" style="display:none">
           <div class="result-header">
             <span>Facture générée</span>
-            <button class="btn-copy" onclick="copyResult('invoice-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('invoice-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('invoice', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('invoice', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="invoice-result-text"></div>
           <div class="result-footer" id="invoice-result-footer" style="display:none">
@@ -288,7 +304,11 @@
         <div class="result-area" id="hearing-result" style="display:none">
           <div class="result-header">
             <span>Fiche d'audience</span>
-            <button class="btn-copy" onclick="copyResult('hearing-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('hearing-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('hearing', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('hearing', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="hearing-result-text"></div>
           <div class="result-footer" id="hearing-result-footer" style="display:none">
@@ -319,7 +339,11 @@
         <div class="result-area" id="content-result" style="display:none">
           <div class="result-header">
             <span>Contenu généré</span>
-            <button class="btn-copy" onclick="copyResult('content-result-text')">Copier</button>
+            <div class="result-actions">
+              <button class="btn-copy"   onclick="copyResult('content-result-text')">Copier</button>
+              <button class="btn-export" onclick="exportResult('content', 'docx')">↓ Word</button>
+              <button class="btn-export btn-export-pdf" onclick="exportResult('content', 'pdf')">↓ PDF</button>
+            </div>
           </div>
           <div class="result-text" id="content-result-text"></div>
           <div class="result-footer" id="content-result-footer" style="display:none">

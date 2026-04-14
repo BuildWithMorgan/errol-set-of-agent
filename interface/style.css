@@ -614,3 +614,28 @@ textarea::placeholder {
 
 select.form-input { cursor: pointer; }
 textarea.form-input { resize: vertical; }
+
+/* ─── Export buttons ─────────────────────────────────────── */
+.result-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-export {
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-export:hover { background: var(--blue-lt); }
+
+.btn-export-pdf {
+  background: var(--blue);
+  color: var(--white);
+}
+.btn-export-pdf:hover { background: var(--blue-dark); }

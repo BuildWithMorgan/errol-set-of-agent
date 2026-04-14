@@ -147,6 +147,34 @@ async function runAgent(agentId) {
   }
 }
 
+// ─── Export ───────────────────────────────────────────────────────────────────
+async function exportResult(agentId, format) {
+  const content = document.getElementById(`${agentId}-result-text`)?.textContent?.trim();
+  if (!content) return;
+
+  try {
+    const response = await fetch('/api/export', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ content, agent: agentId, format }),
+    });
+    if (!response.ok) throw new Error(`Export error: ${response.status}`);
+
+    const blob     = await response.blob();
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    const filename = response.headers.get('Content-Disposition')
+                      ?.match(/filename="(.+)"/)?.[1]
+                      || `leplay-export.${format}`;
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`Erreur lors de l'export : ${e.message}`);
+  }
+}
+
 // ─── Feedback ─────────────────────────────────────────────────────────────────
 async function sendFeedback(agentId, rating) {
   const thumbUp   = document.getElementById(`${agentId}-thumb-up`);

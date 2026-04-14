@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import os
 import uuid
@@ -7,8 +8,14 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 import httpx
+from docx import Document
+from docx.shared import Pt, RGBColor
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from prompts import build_prompt, build_input_summary, AGENT_LABELS
@@ -174,6 +181,93 @@ async def post_feedback(request: Request):
     feedback.append(entry)
     write_json(FEEDBACK_FILE, feedback)
     return entry
+
+# ─── Export ───────────────────────────────────────────────────────────────────
+
+AGENT_LABELS_SHORT = {
+    "rag":     "Consultation dossiers",
+    "letter":  "Courrier juridique",
+    "summary": "Résumé de document",
+    "invoice": "Facture",
+    "hearing": "Fiche d'audience",
+    "content": "Contenu",
+}
+
+
+def _make_docx(content: str, agent: str) -> bytes:
+    doc = Document()
+    # Letterhead
+    heading = doc.add_heading("Le Play Avocats", level=1)
+    heading.runs[0].font.color.rgb = RGBColor(0x0D, 0x0D, 0x0D)
+    meta = doc.add_paragraph(
+        f"{AGENT_LABELS_SHORT.get(agent, agent)}  —  {datetime.now().strftime('%d/%m/%Y')}"
+    )
+    meta.runs[0].font.size = Pt(10)
+    doc.add_paragraph("─" * 60)
+    # Body — one paragraph per line
+    for line in content.split("\n"):
+        doc.add_paragraph(line)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _make_pdf(content: str, agent: str) -> bytes:
+    buf = io.BytesIO()
+    doc_pdf = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2.5*cm, rightMargin=2.5*cm,
+        topMargin=2.5*cm,  bottomMargin=2.5*cm,
+    )
+    styles     = getSampleStyleSheet()
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, spaceAfter=4)
+    meta_style  = ParagraphStyle("meta",  parent=styles["Normal"],  fontSize=9,
+                                 textColor=(0.4, 0.4, 0.4), spaceAfter=12)
+    body_style  = ParagraphStyle("body",  parent=styles["Normal"],  fontSize=11, leading=16)
+
+    story = [
+        Paragraph("Le Play Avocats", title_style),
+        Paragraph(
+            f"{AGENT_LABELS_SHORT.get(agent, agent)} &mdash; {datetime.now().strftime('%d/%m/%Y')}",
+            meta_style,
+        ),
+        Spacer(1, 0.3*cm),
+    ]
+    for line in content.split("\n"):
+        safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(safe_line or "&nbsp;", body_style))
+    doc_pdf.build(story)
+    return buf.getvalue()
+
+
+@app.post("/api/export")
+async def export_document(request: Request):
+    body    = await request.json()
+    content = body.get("content", "").strip()
+    agent   = body.get("agent", "")
+    fmt     = body.get("format", "pdf")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="content is required")
+    if fmt not in ("pdf", "docx"):
+        raise HTTPException(status_code=400, detail="format must be 'pdf' or 'docx'")
+
+    date_str  = datetime.now().strftime("%Y%m%d")
+    label     = AGENT_LABELS_SHORT.get(agent, "document").replace(" ", "-").lower()
+    filename  = f"leplay-{label}-{date_str}.{fmt}"
+
+    if fmt == "docx":
+        file_bytes   = _make_docx(content, agent)
+        content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        file_bytes   = _make_pdf(content, agent)
+        content_type = "application/pdf"
+
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 # ─── Static files (must come last so /api routes are matched first) ───────────
 

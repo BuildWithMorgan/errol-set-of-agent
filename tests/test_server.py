@@ -120,3 +120,35 @@ def test_post_feedback_invalid_agent(tmp_path, monkeypatch):
     (tmp_path / "feedback.json").write_text("[]")
     response = client.post("/api/feedback", json={"agent": "unknown", "rating": "up"})
     assert response.status_code == 400
+
+
+def test_export_pdf():
+    response = client.post("/api/export", json={
+        "content": "Ceci est un test de génération PDF.",
+        "agent": "letter",
+        "format": "pdf",
+    })
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert b"%PDF" in response.content
+
+
+def test_export_docx():
+    response = client.post("/api/export", json={
+        "content": "Ceci est un test de génération Word.",
+        "agent": "invoice",
+        "format": "docx",
+    })
+    assert response.status_code == 200
+    assert "wordprocessingml" in response.headers["content-type"]
+    assert response.content[:2] == b"PK"
+
+
+def test_export_missing_content():
+    response = client.post("/api/export", json={"agent": "letter", "format": "pdf"})
+    assert response.status_code == 400
+
+
+def test_export_invalid_format():
+    response = client.post("/api/export", json={"content": "test", "agent": "letter", "format": "txt"})
+    assert response.status_code == 400
