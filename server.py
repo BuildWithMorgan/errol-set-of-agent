@@ -96,6 +96,7 @@ async def generate(request: Request):
                         "agent": agent_id,
                         "agent_label": AGENT_LABELS.get(agent_id, agent_id),
                         "input": build_input_summary(agent_id, body),
+                        "fields": body.get("fields"),   # None for free-text agents, dict for guided forms
                         "output": output_text,
                         "created_at": datetime.now().isoformat(),
                     })

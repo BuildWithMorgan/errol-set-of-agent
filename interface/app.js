@@ -238,7 +238,7 @@ async function loadDashboard() {
         </div>
         <div class="history-meta">
           <span class="history-time">${relativeTime(h.created_at)}</span>
-          <button class="history-reuse" onclick="reuseHistory('${escapeHtml(h.agent)}', ${JSON.stringify(JSON.stringify(h.input))})">Réutiliser →</button>
+          <button class="history-reuse" onclick="reuseHistory('${escapeHtml(h.agent)}', ${JSON.stringify(JSON.stringify({ input: h.input, fields: h.fields || null }))})">Réutiliser →</button>
         </div>
       </div>
     `).join('');
@@ -247,14 +247,34 @@ async function loadDashboard() {
   }
 }
 
-function reuseHistory(agentId, inputJson) {
-  const input = JSON.parse(inputJson);
+const FIELD_ID_MAP = {
+  letter:  { recipient: 'letter-recipient', letter_type: 'letter-type', subject: 'letter-subject', facts: 'letter-facts' },
+  invoice: { client: 'invoice-client', date: 'invoice-date', hours: 'invoice-hours', rate: 'invoice-rate', description: 'invoice-description' },
+  hearing: { case_name: 'hearing-case', hearing_date: 'hearing-date', parties: 'hearing-parties', arguments: 'hearing-arguments' },
+};
+
+function reuseHistory(agentId, dataJson) {
+  const data = JSON.parse(dataJson);
+  // Switch to agent view
   document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`[data-agent="${agentId}"]`)?.classList.add('active');
   document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
   document.getElementById(`agent-${agentId}`)?.classList.add('active');
-  const inputEl = document.getElementById(`${agentId}-input`);
-  if (inputEl) inputEl.value = input;
+
+  // Restore fields or free-text input
+  if (data.fields && FIELD_ID_MAP[agentId]) {
+    const idMap = FIELD_ID_MAP[agentId];
+    Object.entries(data.fields).forEach(([key, value]) => {
+      const elId = idMap[key];
+      if (elId) {
+        const el = document.getElementById(elId);
+        if (el) el.value = value || '';
+      }
+    });
+  } else {
+    const inputEl = document.getElementById(`${agentId}-input`);
+    if (inputEl) inputEl.value = data.input || '';
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
