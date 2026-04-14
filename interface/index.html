@@ -28,9 +28,14 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <nav class="agent-nav">
+        <button class="agent-btn active" data-agent="dashboard" id="btn-dashboard">
+          <span class="agent-icon">🏠</span>
+          Tableau de bord
+        </button>
+        <div class="nav-divider"></div>
         <p class="nav-label">Agents</p>
 
-        <button class="agent-btn active" data-agent="rag">
+        <button class="agent-btn" data-agent="rag">
           <span class="agent-icon">🗂</span>
           Interroger mes dossiers
         </button>
@@ -60,8 +65,35 @@
     <!-- MAIN -->
     <main class="main">
 
+      <!-- Dashboard -->
+      <section class="agent-view active" id="agent-dashboard">
+        <p class="agent-section-label">Vue d'ensemble</p>
+        <h1 class="agent-title">Tableau de bord</h1>
+        <p class="agent-desc">Statut du système et dernières activités.</p>
+
+        <div class="dashboard-tiles">
+          <div class="tile tile-blue">
+            <div class="tile-value" id="tile-count">—</div>
+            <div class="tile-label">Générations ce mois</div>
+          </div>
+          <div class="tile tile-green">
+            <div class="tile-value" id="tile-status-icon">●</div>
+            <div class="tile-label" id="tile-status-label">Vérification…</div>
+          </div>
+          <div class="tile tile-yellow">
+            <div class="tile-value" id="tile-templates">—</div>
+            <div class="tile-label">Modèles sauvegardés</div>
+          </div>
+        </div>
+
+        <div class="section-heading">Dernières générations</div>
+        <div class="history-table" id="dashboard-history">
+          <div class="history-empty">Aucune génération pour l'instant.</div>
+        </div>
+      </section>
+
       <!-- Agent: Interroger mes dossiers -->
-      <section class="agent-view active" id="agent-rag">
+      <section class="agent-view" id="agent-rag">
         <p class="agent-section-label">Dossiers clients</p>
         <h1 class="agent-title">Interroger mes dossiers</h1>
         <p class="agent-desc">Posez une question en langage naturel sur vos dossiers clients, actes archivés ou correspondances.</p>

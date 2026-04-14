@@ -6,6 +6,7 @@ document.querySelectorAll('.agent-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
     document.getElementById(`agent-${id}`).classList.add('active');
+    if (id === 'dashboard') loadDashboard();
   });
 });
 
@@ -173,6 +174,90 @@ document.querySelectorAll('.drop-zone').forEach(zone => {
   zone.addEventListener('drop',      () => zone.classList.remove('drag-over'));
 });
 
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function relativeTime(isoString) {
+  const diff  = Date.now() - new Date(isoString).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins < 1)   return "à l'instant";
+  if (mins < 60)  return `il y a ${mins} min`;
+  if (hours < 24) return `il y a ${hours}h`;
+  if (days === 1) return 'hier';
+  return `il y a ${days} jours`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function loadDashboard() {
+  try {
+    const [historyRes, templatesRes, statusRes] = await Promise.all([
+      fetch('/api/history?limit=10'),
+      fetch('/api/templates'),
+      fetch('/api/status'),
+    ]);
+    const history   = await historyRes.json();
+    const templates = await templatesRes.json();
+    const status    = await statusRes.json();
+
+    // Tiles
+    const now = new Date();
+    const thisMonth = history.filter(h => {
+      const d = new Date(h.created_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    document.getElementById('tile-count').textContent     = thisMonth.length;
+    document.getElementById('tile-templates').textContent = templates.length;
+
+    const statusIcon  = document.getElementById('tile-status-icon');
+    const statusLabel = document.getElementById('tile-status-label');
+    if (status.online) {
+      statusIcon.style.color  = '#16A34A';
+      statusLabel.textContent = 'Ollama actif';
+    } else {
+      statusIcon.style.color  = '#EF4444';
+      statusLabel.textContent = 'Ollama hors ligne';
+    }
+
+    // History table
+    const container = document.getElementById('dashboard-history');
+    if (history.length === 0) {
+      container.innerHTML = '<div class="history-empty">Aucune génération pour l\'instant.</div>';
+      return;
+    }
+    container.innerHTML = history.map(h => `
+      <div class="history-row">
+        <div class="history-input">
+          <span class="history-badge">${escapeHtml(h.agent_label.split(' ')[0].toUpperCase())}</span>${escapeHtml(h.input)}
+        </div>
+        <div class="history-meta">
+          <span class="history-time">${relativeTime(h.created_at)}</span>
+          <button class="history-reuse" onclick="reuseHistory('${escapeHtml(h.agent)}', ${JSON.stringify(JSON.stringify(h.input))})">Réutiliser →</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Dashboard load error:', e);
+  }
+}
+
+function reuseHistory(agentId, inputJson) {
+  const input = JSON.parse(inputJson);
+  document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-agent="${agentId}"]`)?.classList.add('active');
+  document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
+  document.getElementById(`agent-${agentId}`)?.classList.add('active');
+  const inputEl = document.getElementById(`${agentId}-input`);
+  if (inputEl) inputEl.value = input;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 checkOllamaStatus();
 setInterval(checkOllamaStatus, 30000);
+loadDashboard();
