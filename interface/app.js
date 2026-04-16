@@ -5,8 +5,10 @@ document.querySelectorAll('.agent-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.agent;
     if (id === currentAgent) return;
+    const previousAgent = currentAgent;
+    currentAgent = id; // lock immediately to prevent race condition
 
-    const currentEl = document.getElementById('agent-' + currentAgent);
+    const currentEl = document.getElementById('agent-' + previousAgent);
     const nextEl    = document.getElementById('agent-' + id);
 
     // Update sidebar button states immediately
@@ -25,12 +27,16 @@ document.querySelectorAll('.agent-btn').forEach(btn => {
       nextEl.classList.remove('active', 'leaving');
       nextEl.classList.add('entering');
 
+      const fallback = setTimeout(() => {
+        nextEl.classList.remove('entering');
+        nextEl.classList.add('active');
+      }, 500); // longer than the 0.45s CSS animation
+
       nextEl.addEventListener('animationend', () => {
+        clearTimeout(fallback);
         nextEl.classList.remove('entering');
         nextEl.classList.add('active');
       }, { once: true });
-
-      currentAgent = id;
 
       // Preserve existing post-switch logic
       if (id === 'dashboard') loadDashboard();
