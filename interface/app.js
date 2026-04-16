@@ -1,13 +1,41 @@
 // ─── Agent switching ──────────────────────────────────────────────────────────
+let currentAgent = 'dashboard';
+
 document.querySelectorAll('.agent-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.agent;
+    if (id === currentAgent) return;
+
+    const currentEl = document.getElementById('agent-' + currentAgent);
+    const nextEl    = document.getElementById('agent-' + id);
+
+    // Update sidebar button states immediately
     document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
-    document.getElementById(`agent-${id}`).classList.add('active');
-    if (id === 'dashboard') loadDashboard();
-    else loadTemplates(id);
+
+    // Fade out current panel
+    currentEl.classList.remove('active', 'entering');
+    currentEl.classList.add('leaving');
+
+    setTimeout(() => {
+      currentEl.classList.remove('leaving');
+      currentEl.style.display = 'none';
+
+      nextEl.style.display = 'block';
+      nextEl.classList.remove('active', 'leaving');
+      nextEl.classList.add('entering');
+
+      nextEl.addEventListener('animationend', () => {
+        nextEl.classList.remove('entering');
+        nextEl.classList.add('active');
+      }, { once: true });
+
+      currentAgent = id;
+
+      // Preserve existing post-switch logic
+      if (id === 'dashboard') loadDashboard();
+      else loadTemplates(id);
+    }, 220); // matches fadeOut duration in CSS
   });
 });
 
