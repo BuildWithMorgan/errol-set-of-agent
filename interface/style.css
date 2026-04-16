@@ -97,7 +97,7 @@ body {
   width: var(--sidebar-w);
   background: var(--white);
   flex-shrink: 0;
-  padding: 20px 0;
+  padding: 16px 10px;
   overflow-y: auto;
   border-right: 1px solid var(--gray-3);
 }
@@ -116,9 +116,10 @@ body {
   align-items: center;
   gap: 11px;
   width: 100%;
-  padding: 11px 20px;
+  padding: 10px 12px;
   background: none;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
   color: var(--gray-5);
   font-family: var(--font);
@@ -135,10 +136,15 @@ body {
 }
 
 .agent-btn.active {
-  background: var(--blue-lt);
-  color: var(--blue);
-  border-left-color: var(--blue);
+  background: var(--blue);
+  color: var(--white);
+  border-left-color: transparent;
   font-weight: 500;
+}
+
+.agent-btn.active:hover {
+  background: var(--blue-dark);
+  color: var(--white);
 }
 
 .agent-icon {
@@ -160,6 +166,28 @@ body {
   max-width: 720px;
 }
 .agent-view.active { display: block; }
+
+/* ─── Panel transition animation ────────────────────────── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.agent-view.entering {
+  display: block;
+  animation: fadeSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.agent-view.leaving {
+  display: block;
+  animation: fadeOut 0.22s ease forwards;
+  pointer-events: none;
+}
 
 /* Section label — "— CONSULTER" style from societeamission */
 .agent-section-label {
