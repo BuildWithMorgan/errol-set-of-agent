@@ -148,8 +148,21 @@ body {
 }
 
 .agent-icon {
-  font-size: 15px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
+}
+
+.agent-btn svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.15s;
 }
 
 /* ─── Main ───────────────────────────────────────────────── */
