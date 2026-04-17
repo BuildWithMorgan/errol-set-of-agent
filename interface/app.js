@@ -409,6 +409,7 @@ function reuseHistory(agentId, dataJson) {
   document.querySelector(`[data-agent="${agentId}"]`)?.classList.add('active');
   document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
   document.getElementById(`agent-${agentId}`)?.classList.add('active');
+  currentAgent = agentId;
 
   // Restore fields or free-text input
   if (data.fields && FIELD_ID_MAP[agentId]) {
