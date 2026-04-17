@@ -1,47 +1,48 @@
 // ─── Agent switching ──────────────────────────────────────────────────────────
 let currentAgent = 'dashboard';
 
+function navigateTo(agentId) {
+  if (agentId === currentAgent) return;
+  const previousAgent = currentAgent;
+  currentAgent = agentId;
+
+  const currentEl = document.getElementById('agent-' + previousAgent);
+  const nextEl    = document.getElementById('agent-' + agentId);
+
+  document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
+  const targetBtn = document.querySelector(`[data-agent="${agentId}"]`);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  currentEl.classList.remove('active', 'entering');
+  currentEl.classList.add('leaving');
+
+  setTimeout(() => {
+    currentEl.classList.remove('leaving');
+    currentEl.style.display = 'none';
+
+    nextEl.style.display = 'block';
+    nextEl.classList.remove('active', 'leaving');
+    nextEl.classList.add('entering');
+
+    const fallback = setTimeout(() => {
+      nextEl.classList.remove('entering');
+      nextEl.classList.add('active');
+    }, 600);
+
+    nextEl.addEventListener('animationend', () => {
+      clearTimeout(fallback);
+      nextEl.classList.remove('entering');
+      nextEl.classList.add('active');
+    }, { once: true });
+
+    if (agentId === 'dashboard') loadDashboard();
+    else loadTemplates(agentId);
+  }, 220);
+}
+
 document.querySelectorAll('.agent-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    const id = btn.dataset.agent;
-    if (id === currentAgent) return;
-    const previousAgent = currentAgent;
-    currentAgent = id; // lock immediately to prevent race condition
-
-    const currentEl = document.getElementById('agent-' + previousAgent);
-    const nextEl    = document.getElementById('agent-' + id);
-
-    // Update sidebar button states immediately
-    document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    // Fade out current panel
-    currentEl.classList.remove('active', 'entering');
-    currentEl.classList.add('leaving');
-
-    setTimeout(() => {
-      currentEl.classList.remove('leaving');
-      currentEl.style.display = 'none';
-
-      nextEl.style.display = 'block';
-      nextEl.classList.remove('active', 'leaving');
-      nextEl.classList.add('entering');
-
-      const fallback = setTimeout(() => {
-        nextEl.classList.remove('entering');
-        nextEl.classList.add('active');
-      }, 500); // longer than the 0.45s CSS animation
-
-      nextEl.addEventListener('animationend', () => {
-        clearTimeout(fallback);
-        nextEl.classList.remove('entering');
-        nextEl.classList.add('active');
-      }, { once: true });
-
-      // Preserve existing post-switch logic
-      if (id === 'dashboard') loadDashboard();
-      else loadTemplates(id);
-    }, 220); // matches fadeOut duration in CSS
+    navigateTo(btn.dataset.agent);
   });
 });
 
@@ -404,27 +405,25 @@ const FIELD_ID_MAP = {
 
 function reuseHistory(agentId, dataJson) {
   const data = JSON.parse(dataJson);
-  // Switch to agent view
-  document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-agent="${agentId}"]`)?.classList.add('active');
-  document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
-  document.getElementById(`agent-${agentId}`)?.classList.add('active');
-  currentAgent = agentId;
+  // Switch to agent view via the shared animation helper
+  navigateTo(agentId);
 
-  // Restore fields or free-text input
-  if (data.fields && FIELD_ID_MAP[agentId]) {
-    const idMap = FIELD_ID_MAP[agentId];
-    Object.entries(data.fields).forEach(([key, value]) => {
-      const elId = idMap[key];
-      if (elId) {
-        const el = document.getElementById(elId);
-        if (el) el.value = value || '';
-      }
-    });
-  } else {
-    const inputEl = document.getElementById(`${agentId}-input`);
-    if (inputEl) inputEl.value = data.input || '';
-  }
+  // Restore fields or free-text input after the panel becomes visible (wait for animation)
+  setTimeout(() => {
+    if (data.fields && FIELD_ID_MAP[agentId]) {
+      const idMap = FIELD_ID_MAP[agentId];
+      Object.entries(data.fields).forEach(([key, value]) => {
+        const elId = idMap[key];
+        if (elId) {
+          const el = document.getElementById(elId);
+          if (el) el.value = value || '';
+        }
+      });
+    } else {
+      const inputEl = document.getElementById(`${agentId}-input`);
+      if (inputEl) inputEl.value = data.input || '';
+    }
+  }, 280); // slightly after the 220ms fadeOut + panel swap
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

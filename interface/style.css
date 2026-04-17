@@ -126,7 +126,6 @@ body {
   font-size: 13.5px;
   text-align: left;
   transition: background 0.15s, color 0.15s;
-  border-left: 3px solid transparent;
   line-height: 1.3;
 }
 
@@ -138,7 +137,6 @@ body {
 .agent-btn.active {
   background: var(--blue);
   color: var(--white);
-  border-left-color: transparent;
   font-weight: 500;
 }
 
