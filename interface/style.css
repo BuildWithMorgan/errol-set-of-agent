@@ -148,9 +148,7 @@ body {
 }
 
 .agent-icon {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
+  /* sizing handled by .agent-btn svg */
 }
 
 .agent-btn svg {
