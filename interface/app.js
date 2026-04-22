@@ -376,10 +376,31 @@ function getAgentStats(history) {
   }).sort((a, b) => b.count - a.count);
 }
 
+function renderAgentCards(stats) {
+  const container = document.getElementById('dashboard-agent-cards');
+  if (!container) return;
+  container.innerHTML = stats.map(({ label, svgPath, count, lastUsed, barWidth }) => `
+    <div class="agent-card">
+      <div class="agent-card-header">
+        <div class="agent-card-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">${svgPath}</svg>
+        </div>
+        <div class="agent-card-name">${escapeHtml(label)}</div>
+      </div>
+      <div class="agent-card-count">${count}</div>
+      <div class="agent-card-count-label">utilisation${count !== 1 ? 's' : ''}</div>
+      <div class="agent-card-bar-track">
+        <div class="agent-card-bar-fill" style="width:${barWidth}%"></div>
+      </div>
+      <div class="agent-card-last">${lastUsed ? 'Dernière utilisation : ' + relativeTime(lastUsed) : 'Jamais utilisé'}</div>
+    </div>
+  `).join('');
+}
+
 async function loadDashboard() {
   try {
     const [historyRes, templatesRes, statusRes] = await Promise.all([
-      fetch('/api/history?limit=10'),
+      fetch('/api/history'),
       fetch('/api/templates'),
       fetch('/api/status'),
     ]);
@@ -406,13 +427,16 @@ async function loadDashboard() {
       statusLabel.textContent = 'Ollama hors ligne';
     }
 
+    // Agent cards
+    renderAgentCards(getAgentStats(history));
+
     // History table
     const container = document.getElementById('dashboard-history');
     if (history.length === 0) {
       container.innerHTML = '<div class="history-empty">Aucune génération pour l\'instant.</div>';
       return;
     }
-    container.innerHTML = history.map(h => `
+    container.innerHTML = history.slice(0, 10).map(h => `
       <div class="history-row">
         <div class="history-input">
           <span class="history-badge">${escapeHtml(h.agent_label.split(' ')[0].toUpperCase())}</span>${escapeHtml(h.input)}
