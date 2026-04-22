@@ -349,6 +349,33 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// ─── Agent config & stats ──────────────────────────────────────────────────────
+const AGENT_CONFIG = [
+  { key: 'rag',     label: 'Interroger mes dossiers', svgPath: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><circle cx="11" cy="13" r="2.5"/><path d="m14.5 16.5 2 2"/>' },
+  { key: 'letter',  label: 'Rédiger un courrier',      svgPath: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><path d="M10 13h4M10 17h4M10 9h1"/>' },
+  { key: 'summary', label: 'Résumer un document',      svgPath: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h6M8 17h4"/>' },
+  { key: 'invoice', label: 'Générer une facture',      svgPath: '<path d="M6 2h12a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-2 2V3a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h4"/>' },
+  { key: 'hearing', label: 'Préparer une audience',    svgPath: '<path d="M12 3v4M6.3 6.3l2.8 2.8M17.7 6.3l-2.8 2.8"/><path d="M3 12h18"/><path d="M5 12l2 5h10l2-5"/><path d="M12 17v4M10 21h4"/>' },
+  { key: 'content', label: 'Créer du contenu',         svgPath: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>' },
+];
+
+function getAgentStats(history) {
+  const counts = AGENT_CONFIG.map(({ key }) =>
+    history.filter(h => h.agent === key).length
+  );
+  const maxCount = Math.max(1, ...counts);
+
+  return AGENT_CONFIG.map(({ key, label, svgPath }) => {
+    const entries = history
+      .filter(h => h.agent === key)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const count    = entries.length;
+    const lastUsed = entries[0]?.created_at ?? null;
+    const barWidth = Math.round((count / maxCount) * 100);
+    return { key, label, svgPath, count, lastUsed, barWidth };
+  }).sort((a, b) => b.count - a.count);
+}
+
 async function loadDashboard() {
   try {
     const [historyRes, templatesRes, statusRes] = await Promise.all([
