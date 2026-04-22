@@ -331,7 +331,7 @@ function relativeTime(isoString) {
   const hours  = Math.floor(diff / 3600000);
   const days   = Math.floor(diff / 86400000);
   const weeks  = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
+  const months = Math.max(1, Math.floor(days / 30));
   if (mins < 1)    return "à l'instant";
   if (mins < 60)   return `il y a ${mins} min`;
   if (hours < 24)  return `il y a ${hours}h`;
