@@ -463,6 +463,16 @@ async function deleteHistoryEntry(event, id) {
   await loadDashboard();
 }
 
+async function clearAllHistory() {
+  if (!window.confirm('Effacer tout l\'historique ?')) return;
+  const res = await fetch('/api/history', { method: 'DELETE' });
+  if (!res.ok) {
+    alert('Erreur lors de la suppression de l\'historique.');
+    return;
+  }
+  await loadDashboard();
+}
+
 const FIELD_ID_MAP = {
   letter:  { recipient: 'letter-recipient', letter_type: 'letter-type', subject: 'letter-subject', facts: 'letter-facts' },
   invoice: { client: 'invoice-client', date: 'invoice-date', hours: 'invoice-hours', rate: 'invoice-rate', description: 'invoice-description' },

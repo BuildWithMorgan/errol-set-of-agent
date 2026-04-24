@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2" />
 </head>
 <body>
 
@@ -89,7 +89,10 @@
         <div class="section-heading">Utilisation par agent</div>
         <div class="agent-cards" id="dashboard-agent-cards"></div>
 
-        <div class="section-heading">Dernières générations</div>
+        <div class="section-heading" style="display:flex;align-items:center;justify-content:space-between;">
+          Dernières générations
+          <button class="btn-copy" onclick="clearAllHistory()" style="font-size:12px;">Effacer tout</button>
+        </div>
         <div class="history-table" id="dashboard-history">
           <div class="history-empty">Aucune génération pour l'instant.</div>
         </div>
@@ -363,6 +366,6 @@
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
