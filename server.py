@@ -130,6 +130,12 @@ async def delete_history_entry(entry_id: str):
             raise HTTPException(status_code=404, detail="History entry not found")
         write_json(HISTORY_FILE, updated)
 
+
+@app.delete("/api/history", status_code=204)
+async def clear_history():
+    async with _history_lock:
+        write_json(HISTORY_FILE, [])
+
 # ─── Templates ────────────────────────────────────────────────────────────────
 
 @app.get("/api/templates")

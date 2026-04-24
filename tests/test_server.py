@@ -172,3 +172,15 @@ def test_delete_history_entry_not_found(tmp_path, monkeypatch):
     (tmp_path / "history.json").write_text("[]")
     response = client.delete("/api/history/nonexistent")
     assert response.status_code == 404
+
+
+def test_clear_history(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.HISTORY_FILE", tmp_path / "history.json")
+    (tmp_path / "history.json").write_text(json.dumps([
+        {"id": "1", "agent": "rag", "agent_label": "Interroger mes dossiers", "input": "q", "output": "a", "created_at": "2026-01-01"},
+        {"id": "2", "agent": "letter", "agent_label": "Rédiger un courrier", "input": "x", "output": "y", "created_at": "2026-01-02"},
+    ]))
+    response = client.delete("/api/history")
+    assert response.status_code == 204
+    remaining = json.loads((tmp_path / "history.json").read_text())
+    assert remaining == []
