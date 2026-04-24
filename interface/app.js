@@ -444,7 +444,7 @@ async function loadDashboard() {
         <div class="history-meta">
           <span class="history-time">${relativeTime(h.created_at)}</span>
           <button class="history-reuse" onclick="reuseHistory('${escapeHtml(h.agent)}', ${JSON.stringify(JSON.stringify({ input: h.input, fields: h.fields || null }))})">Réutiliser →</button>
-          <button class="template-pill-delete" onclick="deleteHistoryEntry('${escapeHtml(h.id)}')">✕</button>
+          <button class="template-pill-delete" onclick="deleteHistoryEntry(event, '${escapeHtml(h.id)}')">✕</button>
         </div>
       </div>
     `).join('');
@@ -453,7 +453,8 @@ async function loadDashboard() {
   }
 }
 
-async function deleteHistoryEntry(id) {
+async function deleteHistoryEntry(event, id) {
+  event.stopPropagation();
   const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
   if (!res.ok) {
     alert('Erreur lors de la suppression de cette entrée.');
