@@ -120,6 +120,16 @@ def get_history(agent: Optional[str] = None, limit: int = 20):
         history = [h for h in history if h["agent"] == agent]
     return history[:limit]
 
+
+@app.delete("/api/history/{entry_id}", status_code=204)
+async def delete_history_entry(entry_id: str):
+    async with _history_lock:
+        history = read_json(HISTORY_FILE)
+        updated = [h for h in history if h["id"] != entry_id]
+        if len(updated) == len(history):
+            raise HTTPException(status_code=404, detail="History entry not found")
+        write_json(HISTORY_FILE, updated)
+
 # ─── Templates ────────────────────────────────────────────────────────────────
 
 @app.get("/api/templates")

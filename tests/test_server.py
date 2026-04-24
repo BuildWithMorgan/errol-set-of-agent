@@ -152,3 +152,23 @@ def test_export_missing_content():
 def test_export_invalid_format():
     response = client.post("/api/export", json={"content": "test", "agent": "letter", "format": "txt"})
     assert response.status_code == 400
+
+
+def test_delete_history_entry(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.HISTORY_FILE", tmp_path / "history.json")
+    (tmp_path / "history.json").write_text(json.dumps([
+        {"id": "abc", "agent": "letter", "agent_label": "Rédiger un courrier", "input": "test", "output": "result", "created_at": "2026-01-01"},
+        {"id": "xyz", "agent": "rag",    "agent_label": "Interroger mes dossiers", "input": "query", "output": "answer", "created_at": "2026-01-02"},
+    ]))
+    response = client.delete("/api/history/abc")
+    assert response.status_code == 204
+    remaining = json.loads((tmp_path / "history.json").read_text())
+    assert len(remaining) == 1
+    assert remaining[0]["id"] == "xyz"
+
+
+def test_delete_history_entry_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.HISTORY_FILE", tmp_path / "history.json")
+    (tmp_path / "history.json").write_text("[]")
+    response = client.delete("/api/history/nonexistent")
+    assert response.status_code == 404
