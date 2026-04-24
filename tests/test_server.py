@@ -184,3 +184,11 @@ def test_clear_history(tmp_path, monkeypatch):
     assert response.status_code == 204
     remaining = json.loads((tmp_path / "history.json").read_text())
     assert remaining == []
+
+
+def test_clear_history_already_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr("server.HISTORY_FILE", tmp_path / "history.json")
+    (tmp_path / "history.json").write_text("[]")
+    response = client.delete("/api/history")
+    assert response.status_code == 204
+    assert json.loads((tmp_path / "history.json").read_text()) == []
