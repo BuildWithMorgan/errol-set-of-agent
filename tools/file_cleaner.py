@@ -13,6 +13,11 @@ SUPPORTED_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".xlsx", ".xls"
 }
 
+REQUIRED_KEYS = {"client", "document_type", "legal_value", "proposed_name",
+                 "proposed_subfolder", "reason", "action"}
+
+VALID_ACTIONS = {"rename_and_move", "delete", "review_manually"}
+
 
 def get_files_to_scan(folders: list, max_age_days: int = 30) -> list:
     cutoff = datetime.now() - timedelta(days=max_age_days)
@@ -62,7 +67,10 @@ Règles :
         raw = response.json()["response"].strip()
         start = raw.find("{")
         end = raw.rfind("}") + 1
-        return json.loads(raw[start:end])
+        result = json.loads(raw[start:end])
+        if not REQUIRED_KEYS.issubset(result.keys()):
+            raise ValueError(f"Incomplete Ollama response, missing: {REQUIRED_KEYS - result.keys()}")
+        return result
     except Exception as e:
         return {
             "client": None,
@@ -86,6 +94,8 @@ def scan_folders(folders: list, max_age_days: int = 30, known_paths: set = None)
         if str(file_path) in known_paths:
             continue
         classification = classify_file(file_path)
+        if classification.get("action") not in VALID_ACTIONS:
+            classification["action"] = "review_manually"
         destination = str(Path(onedrive) / classification["proposed_subfolder"])
         proposals.append({
             "id": uuid.uuid4().hex,

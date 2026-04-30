@@ -1,7 +1,6 @@
 import json
 import pytest
 from pathlib import Path
-from unittest.mock import patch
 from tools.file_cleaner import get_files_to_scan, classify_file, scan_folders
 
 MOCK_CLASSIFICATION = {
@@ -79,3 +78,26 @@ def test_classify_file_falls_back_on_ollama_error(tmp_path, monkeypatch):
     result = classify_file(f)
     assert result["action"] == "review_manually"
     assert "Erreur" in result["reason"]
+
+
+def test_classify_file_parses_valid_ollama_response(tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"response": json.dumps(MOCK_CLASSIFICATION)}
+    mock_response.raise_for_status = lambda: None
+    monkeypatch.setattr("httpx.post", lambda *a, **kw: mock_response)
+    f = tmp_path / "contrat_dupont.pdf"
+    f.touch()
+    result = classify_file(f)
+    assert result["action"] == "rename_and_move"
+    assert result["client"] == "Dupont"
+
+
+def test_get_files_to_scan_excludes_old_files(tmp_path):
+    import os, time
+    old_file = tmp_path / "old.pdf"
+    old_file.touch()
+    old_mtime = time.time() - (40 * 86400)
+    os.utime(old_file, (old_mtime, old_mtime))
+    files = get_files_to_scan([str(tmp_path)], max_age_days=30)
+    assert old_file not in files
