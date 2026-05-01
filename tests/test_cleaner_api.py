@@ -123,14 +123,9 @@ def test_post_settings_persists(monkeypatch, tmp_path):
     settings_file = tmp_path / "cleaner_settings.json"
     monkeypatch.setattr("server.CLEANER_SETTINGS_FILE", settings_file)
 
-    mock_scheduler = MagicMock()
-    monkeypatch.setattr("server._scheduler", mock_scheduler)
-
     r = client.post("/api/cleaner/settings", json={"interval_minutes": 30})
     assert r.status_code == 200
-    mock_scheduler.reschedule_job.assert_called_once_with(
-        "cleaner_scan", trigger="interval", minutes=30
-    )
+    assert r.json()["interval_minutes"] == 30
 
 
 def test_scan_endpoint_returns_started(monkeypatch):

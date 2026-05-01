@@ -52,13 +52,6 @@ _scan_running = False
 async def lifespan(app_: FastAPI):
     global _event_loop
     _event_loop = asyncio.get_event_loop()
-    settings = get_cleaner_settings()
-    _scheduler.add_job(
-        run_scan, "interval",
-        minutes=settings["interval_minutes"],
-        id="cleaner_scan",
-        replace_existing=True,
-    )
     _scheduler.start()
     yield
     _scheduler.shutdown(wait=False)
@@ -499,10 +492,6 @@ async def update_settings(request: Request):
     CLEANER_SETTINGS_FILE.write_text(
         json.dumps(settings, ensure_ascii=False), encoding="utf-8"
     )
-    if "interval_minutes" in body:
-        _scheduler.reschedule_job(
-            "cleaner_scan", trigger="interval", minutes=body["interval_minutes"]
-        )
     return settings
 
 

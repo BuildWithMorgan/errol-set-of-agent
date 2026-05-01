@@ -285,7 +285,7 @@ function navigateTo(agentId) {
     }, { once: true });
 
     if (agentId === 'dashboard') loadDashboard();
-    else if (agentId === 'cleaner') cleanerLoadProposals();
+    else if (agentId === 'cleaner') { cleanerLoadProposals(); cleanerTriggerScan(); }
     else loadTemplates(agentId);
   }, 220);
 }
