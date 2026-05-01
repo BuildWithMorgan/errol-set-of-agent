@@ -4,11 +4,6 @@ from datetime import datetime, timezone
 
 import httpx
 
-CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID")
-CLIENT_SECRET = os.getenv("OUTLOOK_CLIENT_SECRET")
-TENANT_ID = os.getenv("OUTLOOK_TENANT_ID")
-USER_EMAIL = os.getenv("OUTLOOK_USER_EMAIL")
-
 
 def is_configured() -> bool:
     return all([
