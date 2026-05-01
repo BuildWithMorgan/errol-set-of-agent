@@ -435,6 +435,111 @@ async def export_document(request: Request):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+# ─── Cleaner ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/cleaner/proposals")
+async def get_cleaner_proposals():
+    proposals = read_proposals()
+    return [p for p in proposals if p["status"] == "pending"]
+
+
+@app.post("/api/cleaner/apply")
+async def apply_cleaner_proposals(request: Request):
+    body = await request.json()
+    ids = set(body.get("ids", []))
+    action_type = body.get("action", "apply")
+
+    proposals = read_proposals()
+    results = {"applied": [], "ignored": [], "errors": []}
+
+    for p in proposals:
+        if p["id"] not in ids:
+            continue
+        if action_type == "ignore":
+            p["status"] = "ignored"
+            results["ignored"].append(p["id"])
+            continue
+        try:
+            if p["action"] == "rename_and_move":
+                src = Path(p["original_path"])
+                dest_dir = Path(p["proposed_destination"])
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                src.rename(dest_dir / p["proposed_name"])
+                p["status"] = "applied"
+                results["applied"].append(p["id"])
+            elif p["action"] == "delete":
+                Path(p["original_path"]).unlink(missing_ok=True)
+                p["status"] = "applied"
+                results["applied"].append(p["id"])
+            elif p["action"] in ("email_flag", "review_manually"):
+                p["status"] = "applied"
+                results["applied"].append(p["id"])
+        except FileNotFoundError:
+            p["status"] = "stale"
+            results["errors"].append({"id": p["id"], "error": "Fichier introuvable"})
+        except Exception as e:
+            results["errors"].append({"id": p["id"], "error": str(e)})
+
+    write_proposals(proposals)
+    return results
+
+
+@app.get("/api/cleaner/settings")
+async def get_settings():
+    return get_cleaner_settings()
+
+
+@app.post("/api/cleaner/settings")
+async def update_settings(request: Request):
+    body = await request.json()
+    settings = get_cleaner_settings()
+    settings.update({k: v for k, v in body.items() if k in (
+        "interval_minutes", "folders", "max_age_days"
+    )})
+    CLEANER_SETTINGS_FILE.write_text(
+        json.dumps(settings, ensure_ascii=False), encoding="utf-8"
+    )
+    if "interval_minutes" in body:
+        _scheduler.reschedule_job(
+            "cleaner_scan", trigger="interval", minutes=body["interval_minutes"]
+        )
+    return settings
+
+
+@app.post("/api/cleaner/scan")
+async def trigger_scan():
+    threading.Thread(target=run_scan, daemon=True).start()
+    return {"status": "started"}
+
+
+@app.get("/api/cleaner/events")
+async def cleaner_events(request: Request):
+    q: asyncio.Queue = asyncio.Queue(maxsize=50)
+    async with _sse_lock:
+        _sse_clients.add(q)
+
+    async def generate() -> AsyncGenerator[str, None]:
+        try:
+            yield 'data: {"type":"connected"}\n\n'
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        finally:
+            async with _sse_lock:
+                _sse_clients.discard(q)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 # ─── Static files (must come last so /api routes are matched first) ───────────
 
 app.mount("/", StaticFiles(directory="interface", html=True), name="static")
