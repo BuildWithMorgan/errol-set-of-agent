@@ -2,22 +2,28 @@ import asyncio
 import io
 import json
 import os
+import threading
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 import httpx
+from apscheduler.schedulers.background import BackgroundScheduler
 from docx import Document
 from docx.shared import Pt, RGBColor
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pypdf import PdfReader
 
+import tools.file_cleaner as file_cleaner
+import tools.outlook_monitor as outlook_monitor
 from prompts import build_prompt, build_input_summary, AGENT_LABELS
 
 _history_lock = asyncio.Lock()
@@ -31,8 +37,34 @@ DATA_DIR = Path("data")
 HISTORY_FILE = DATA_DIR / "history.json"
 TEMPLATES_FILE = DATA_DIR / "templates.json"
 FEEDBACK_FILE = DATA_DIR / "feedback.json"
+CLEANER_PROPOSALS_FILE = DATA_DIR / "cleaner_proposals.json"
+CLEANER_SETTINGS_FILE  = DATA_DIR / "cleaner_settings.json"
 
-app = FastAPI()
+_sse_clients: set = set()
+_sse_lock = asyncio.Lock()
+_event_loop: asyncio.AbstractEventLoop = None
+
+_scheduler = BackgroundScheduler()
+_scan_running = False
+
+
+@asynccontextmanager
+async def lifespan(app_: FastAPI):
+    global _event_loop
+    _event_loop = asyncio.get_event_loop()
+    settings = get_cleaner_settings()
+    _scheduler.add_job(
+        run_scan, "interval",
+        minutes=settings["interval_minutes"],
+        id="cleaner_scan",
+        replace_existing=True,
+    )
+    _scheduler.start()
+    yield
+    _scheduler.shutdown(wait=False)
+
+
+app = FastAPI(lifespan=lifespan)
 
 # ─── JSON helpers ─────────────────────────────────────────────────────────────
 
@@ -44,6 +76,83 @@ def read_json(path: Path) -> list:
 
 def write_json(path: Path, data: list) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# ─── Cleaner helpers ──────────────────────────────────────────────────────────
+
+def read_proposals() -> list:
+    return read_json(CLEANER_PROPOSALS_FILE)
+
+
+def write_proposals(data: list) -> None:
+    write_json(CLEANER_PROPOSALS_FILE, data)
+
+
+def get_cleaner_settings() -> dict:
+    defaults = {
+        "interval_minutes": int(os.getenv("CLEANER_INTERVAL_MINUTES", "60")),
+        "folders": os.getenv(
+            "CLEANER_FOLDERS",
+            f"{Path.home()}/Downloads,{Path.home()}/Desktop"
+        ).split(","),
+        "max_age_days": int(os.getenv("CLEANER_MAX_FILE_AGE_DAYS", "30")),
+        "outlook_enabled": outlook_monitor.is_configured(),
+    }
+    if CLEANER_SETTINGS_FILE.exists():
+        saved = json.loads(CLEANER_SETTINGS_FILE.read_text(encoding="utf-8"))
+        defaults.update(saved)
+    return defaults
+
+
+async def broadcast_sse(event: dict) -> None:
+    async with _sse_lock:
+        dead = set()
+        for q in _sse_clients:
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                dead.add(q)
+        _sse_clients.difference_update(dead)
+
+
+def run_scan() -> None:
+    global _scan_running
+    if _scan_running:
+        return
+    _scan_running = True
+    try:
+        settings = get_cleaner_settings()
+        proposals = read_proposals()
+        known_paths = {p["original_path"] for p in proposals}
+
+        new_proposals = file_cleaner.scan_folders(
+            settings["folders"], settings["max_age_days"], known_paths
+        )
+
+        if settings.get("outlook_enabled"):
+            email_proposals = [p for p in proposals if p["source"] == "email"]
+            known_email_ids = {p["original_path"] for p in email_proposals}
+            last_scan = None
+            if email_proposals:
+                last_scan = datetime.fromisoformat(email_proposals[-1]["detected_at"])
+            new_proposals += outlook_monitor.scan_emails(last_scan, known_email_ids)
+
+        if new_proposals:
+            proposals.extend(new_proposals)
+            write_proposals(proposals)
+
+        if _event_loop:
+            asyncio.run_coroutine_threadsafe(
+                broadcast_sse({"type": "new_proposals", "count": len(new_proposals)}),
+                _event_loop,
+            )
+            asyncio.run_coroutine_threadsafe(
+                broadcast_sse({"type": "scan_complete", "found": len(new_proposals)}),
+                _event_loop,
+            )
+    finally:
+        _scan_running = False
+
 
 # ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +166,47 @@ async def status():
     except Exception:
         pass
     return {"online": False, "model": OLLAMA_MODEL}
+
+# ─── File upload & text extraction ───────────────────────────────────────────
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    content_type = file.content_type or ""
+    file_bytes = await file.read()
+
+    is_pdf  = "pdf" in content_type or filename.lower().endswith(".pdf")
+    is_docx = "wordprocessingml" in content_type or filename.lower().endswith(".docx")
+    is_doc  = filename.lower().endswith(".doc")
+    is_text = "text" in content_type or filename.lower().endswith(".txt")
+
+    if is_pdf:
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages  = [page.extract_text() or "" for page in reader.pages]
+        text   = "\n\n".join(p for p in pages if p.strip())
+    elif is_docx:
+        doc  = Document(io.BytesIO(file_bytes))
+        text = "\n".join(para.text for para in doc.paragraphs)
+    elif is_text:
+        text = file_bytes.decode("utf-8", errors="replace")
+    elif is_doc:
+        raise HTTPException(
+            status_code=415,
+            detail="Le format .doc (ancien Word) n'est pas supporté. Veuillez enregistrer le fichier en .docx et réessayer.",
+        )
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Format non supporté : {filename}. Formats acceptés : PDF, DOCX, TXT.",
+        )
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Aucun texte n'a pu être extrait du document. Il est peut-être scanné ou protégé.",
+        )
+
+    return {"text": text, "filename": filename}
 
 # ─── Generate (Ollama proxy + streaming + auto-save to history) ───────────────
 
