@@ -1,6 +1,255 @@
 // ─── Agent switching ──────────────────────────────────────────────────────────
 let currentAgent = 'dashboard';
 
+// ─── Cleaner state ────────────────────────────────────────────────────────────
+let cleanerEventSource = null;
+let cleanerBadgeCount  = 0;
+let cleanerProposals   = [];
+let cleanerSelected    = new Set();
+let cleanerCountdown   = 3600;
+let cleanerTimer       = null;
+
+function cleanerUpdateBadge(count) {
+  const badge = document.getElementById('cleaner-badge');
+  if (!badge) return;
+  cleanerBadgeCount = count;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline-flex' : 'none';
+}
+
+function cleanerInitSSE() {
+  if (cleanerEventSource) return;
+  cleanerEventSource = new EventSource('/api/cleaner/events');
+  cleanerEventSource.onmessage = (e) => {
+    const event = JSON.parse(e.data);
+    if (event.type === 'new_proposals') {
+      cleanerUpdateBadge(cleanerBadgeCount + event.count);
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && event.count > 0) {
+        new Notification('Le Play Avocats', {
+          body: `${event.count} nouvelle${event.count > 1 ? 's' : ''} proposition${event.count > 1 ? 's' : ''} de nettoyage`,
+        });
+      }
+      if (document.getElementById('agent-cleaner')?.classList.contains('active')) {
+        cleanerLoadProposals();
+      }
+    }
+    if (event.type === 'scan_complete') {
+      cleanerScanDone(event.found);
+    }
+  };
+  cleanerEventSource.onerror = () => {
+    cleanerEventSource.close();
+    cleanerEventSource = null;
+    setTimeout(cleanerInitSSE, 5000);
+  };
+}
+
+function cleanerStartCountdown(seconds) {
+  clearInterval(cleanerTimer);
+  cleanerCountdown = seconds;
+  cleanerTickDown();
+  cleanerTimer = setInterval(cleanerTickDown, 1000);
+}
+
+function cleanerTickDown() {
+  const el = document.getElementById('cleaner-countdown');
+  if (!el) return;
+  if (cleanerCountdown <= 0) { clearInterval(cleanerTimer); return; }
+  cleanerCountdown--;
+  el.textContent = cleanerCountdown < 60
+    ? cleanerCountdown + 's'
+    : Math.round(cleanerCountdown / 60) + ' min';
+}
+
+function cleanerChangeInterval() {
+  const select = document.getElementById('cleaner-interval-select');
+  const seconds = parseInt(select.value);
+  fetch('/api/cleaner/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ interval_minutes: Math.max(1, Math.round(seconds / 60)) }),
+  });
+  cleanerStartCountdown(seconds);
+}
+
+async function cleanerLoadProposals() {
+  const r = await fetch('/api/cleaner/proposals');
+  cleanerProposals = await r.json();
+  const fileProposals  = cleanerProposals.filter(p => p.source === 'file');
+  const emailProposals = cleanerProposals.filter(p => p.source === 'email');
+  cleanerSelected = new Set(cleanerProposals.map(p => p.id));
+  cleanerRenderProposals(fileProposals);
+  cleanerRenderEmails(emailProposals);
+  cleanerUpdateFooter();
+  cleanerUpdateBadge(fileProposals.length + emailProposals.length);
+}
+
+function cleanerExtBadge(ext) {
+  const e = (ext || '').toLowerCase().replace('.', '');
+  return ['pdf','docx','doc','png','jpg','jpeg','txt','xlsx','xls'].includes(e) ? e : 'file';
+}
+
+function cleanerRenderProposals(proposals) {
+  const list = document.getElementById('cleaner-proposals-list');
+  if (!proposals.length) {
+    list.innerHTML = '<div class="cleaner-empty">Aucun fichier à traiter.</div>';
+    document.getElementById('cleaner-footer').style.display = 'none';
+    return;
+  }
+  document.getElementById('cleaner-footer').style.display = 'flex';
+  list.innerHTML = proposals.map(p => {
+    const ext  = p.original_path?.split('.').pop() || '';
+    const name = p.original_path?.split('/').pop() || '';
+    return `
+    <div class="triage-card" id="card-${p.id}">
+      <div class="triage-card-header">
+        <span class="file-type-badge badge-${cleanerExtBadge(ext)}">${escapeHtml(ext.toUpperCase())}</span>
+        <span class="file-original-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+        <div class="triage-toggle">
+          <span class="toggle-label" id="lbl-${p.id}">Actif</span>
+          <button class="toggle-switch on" id="tog-${p.id}" onclick="cleanerToggle('${p.id}')"></button>
+        </div>
+      </div>
+      <div class="triage-actions">${cleanerRenderActions(p)}</div>
+    </div>`;
+  }).join('');
+}
+
+function cleanerRenderActions(p) {
+  if (p.action === 'delete') {
+    return `<div class="action-row">
+      <span class="action-tag tag-delete">🗑 Supprimer</span>
+      <span class="action-value">${escapeHtml(p.ai_reason)}</span>
+    </div>`;
+  }
+  if (p.action === 'rename_and_move') {
+    return `<div class="action-row">
+        <span class="action-tag tag-rename">✏ Renommer</span>
+        <span class="action-value">→ ${escapeHtml(p.proposed_name || '')}</span>
+      </div>
+      <div class="action-row">
+        <span class="action-tag tag-move">📁 Déplacer</span>
+        <span class="action-value">→ ${escapeHtml(p.proposed_destination || '')}</span>
+      </div>`;
+  }
+  return `<div class="action-row">
+    <span class="action-tag tag-review">👁 Examiner</span>
+    <span class="action-value">${escapeHtml(p.ai_reason)}</span>
+  </div>`;
+}
+
+function cleanerRenderEmails(emails) {
+  const heading = document.getElementById('cleaner-emails-heading');
+  const list    = document.getElementById('cleaner-emails-list');
+  if (!emails.length) { heading.style.display = 'none'; list.innerHTML = ''; return; }
+  heading.style.display = 'block';
+  list.innerHTML = emails.map(p => {
+    const meta  = p.email_meta || {};
+    const count = (meta.attachments || []).length;
+    const time  = meta.received_at
+      ? new Date(meta.received_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    return `<div class="email-item">
+      <span class="email-unread"></span>
+      <div class="email-info">
+        <div class="email-sender">${escapeHtml(meta.sender || '')}</div>
+        <div class="email-subject">${escapeHtml(meta.subject || '')}</div>
+      </div>
+      <span class="email-attach">📎 ${count} fichier${count > 1 ? 's' : ''}</span>
+      <span class="email-time">${time}</span>
+    </div>`;
+  }).join('');
+}
+
+function cleanerUpdateFooter() {
+  const count = cleanerSelected.size;
+  const summary = document.getElementById('cleaner-summary');
+  if (summary) summary.innerHTML = `<strong>${count} action${count > 1 ? 's' : ''}</strong> sélectionnée${count > 1 ? 's' : ''}`;
+}
+
+function cleanerToggle(id) {
+  const tog = document.getElementById('tog-' + id);
+  const lbl = document.getElementById('lbl-' + id);
+  if (!tog) return;
+  const isOn = tog.classList.toggle('on');
+  lbl.textContent = isOn ? 'Actif' : 'Ignoré';
+  if (isOn) cleanerSelected.add(id); else cleanerSelected.delete(id);
+  cleanerUpdateFooter();
+}
+
+function cleanerIgnoreAll() {
+  cleanerProposals.forEach(p => {
+    const tog = document.getElementById('tog-' + p.id);
+    const lbl = document.getElementById('lbl-' + p.id);
+    if (tog) { tog.classList.remove('on'); lbl.textContent = 'Ignoré'; }
+  });
+  cleanerSelected.clear();
+  cleanerUpdateFooter();
+}
+
+async function cleanerApplySelected() {
+  if (!cleanerSelected.size) return;
+  const r = await fetch('/api/cleaner/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [...cleanerSelected], action: 'apply' }),
+  });
+  const result = await r.json();
+  cleanerAddLog('clean', `${result.applied.length} action(s) appliquée(s)`
+    + (result.errors.length ? ` · ${result.errors.length} erreur(s)` : ''));
+  cleanerUpdateBadge(0);
+  await cleanerLoadProposals();
+}
+
+async function cleanerTriggerScan() {
+  const dot  = document.getElementById('cleaner-monitor-dot');
+  const text = document.getElementById('cleaner-monitor-text');
+  const bar  = document.getElementById('cleaner-scan-bar');
+  if (dot)  dot.classList.add('scanning');
+  if (text) text.innerHTML = 'Analyse en cours… <strong>Téléchargements + Bureau</strong>';
+  let prog = 0;
+  const pTimer = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 12, 95);
+    if (bar) bar.style.width = prog + '%';
+  }, 150);
+  await fetch('/api/cleaner/scan', { method: 'POST' });
+  setTimeout(() => {
+    clearInterval(pTimer);
+    if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.style.width = '0%'; }, 400); }
+  }, 1800);
+}
+
+function cleanerScanDone(found) {
+  const dot  = document.getElementById('cleaner-monitor-dot');
+  const text = document.getElementById('cleaner-monitor-text');
+  if (dot)  dot.classList.remove('scanning');
+  if (text) text.innerHTML = `Surveillance active · prochain scan dans <strong id="cleaner-countdown">${cleanerCountdown}s</strong>`;
+  const msg = found > 0 ? `${found} élément(s) détecté(s)` : 'Scan terminé — aucun nouveau fichier';
+  cleanerAddLog(found > 0 ? 'found' : 'clean', msg);
+  if (found > 0) cleanerLoadProposals();
+}
+
+function cleanerAddLog(type, msg) {
+  const log = document.getElementById('cleaner-log');
+  if (!log) return;
+  const time = new Date().toLocaleTimeString('fr-FR');
+  const div  = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-time">${time}</span><span class="log-dot ${type}">●</span><span>${escapeHtml(msg)}</span>`;
+  log.insertBefore(div, log.firstChild);
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+function cleanerClearLog() {
+  const log = document.getElementById('cleaner-log');
+  if (log) log.innerHTML = '';
+}
+
+function cleanerRequestNotificationPermission() {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+
 function navigateTo(agentId) {
   if (agentId === currentAgent) return;
   const previousAgent = currentAgent;
@@ -36,6 +285,7 @@ function navigateTo(agentId) {
     }, { once: true });
 
     if (agentId === 'dashboard') loadDashboard();
+    else if (agentId === 'cleaner') cleanerLoadProposals();
     else loadTemplates(agentId);
   }, 220);
 }
@@ -67,6 +317,11 @@ async function checkOllamaStatus() {
 
 // ─── Collect input for each agent ────────────────────────────────────────────
 function collectInput(agentId) {
+  if (agentId === 'summary' && summaryExtractedText !== null) {
+    const text = summaryExtractedText;
+    summaryExtractedText = null;
+    return { agent: 'summary', input: text };
+  }
   if (agentId === 'letter') {
     return {
       agent: 'letter',
@@ -116,10 +371,40 @@ function collectInput(agentId) {
 
 // ─── Run agent ────────────────────────────────────────────────────────────────
 async function runAgent(agentId) {
-  const body       = collectInput(agentId);
   const resultBox  = document.getElementById(`${agentId}-result`);
   const resultText = document.getElementById(`${agentId}-result-text`);
+  const submitBtn  = document.querySelector(`#agent-${agentId} .btn-primary`);
 
+  // For summary: if a file is staged, upload and extract text first
+  if (agentId === 'summary' && summaryPendingFile) {
+    resultBox.style.display = 'block';
+    resultText.textContent  = 'Extraction du document en cours…';
+    resultText.className    = 'result-text loading';
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const fd = new FormData();
+      fd.append('file', summaryPendingFile);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        resultText.textContent = `Erreur : ${err.detail || 'Impossible d\'extraire le texte du document.'}`;
+        resultText.className   = 'result-text';
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+      const { text } = await res.json();
+      summaryExtractedText = text;
+    } catch (e) {
+      resultText.textContent = `Erreur : ${e.message}`;
+      resultText.className   = 'result-text';
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+    // Button stays disabled — falls through directly into generation below
+  }
+
+  const body = collectInput(agentId);
   const hasInput = body.input
     ? body.input.length > 0
     : Object.values(body.fields || {}).some(v => v.length > 0);
@@ -129,7 +414,6 @@ async function runAgent(agentId) {
   resultText.textContent  = 'Génération en cours…';
   resultText.className    = 'result-text loading';
 
-  const submitBtn = document.querySelector(`#agent-${agentId} .btn-primary`);
   if (submitBtn) submitBtn.disabled = true;
 
   try {
@@ -244,23 +528,69 @@ function copyResult(elementId) {
 }
 
 // ─── File drop / upload ───────────────────────────────────────────────────────
+let summaryPendingFile   = null;
+let summaryExtractedText = null;
+
+function setSummaryFile(file) {
+  summaryPendingFile = file;
+  const zone = document.getElementById('summary-drop');
+  zone.innerHTML = `
+    <span class="drop-file-name">📄 ${escapeHtml(file.name)}</span>
+    <button class="drop-file-remove" onclick="removeSummaryFile(event)">×</button>
+  `;
+  zone.classList.add('has-file');
+}
+
+function removeSummaryFile(event) {
+  event.stopPropagation();
+  summaryPendingFile = null;
+  const zone = document.getElementById('summary-drop');
+  zone.innerHTML = `Glissez un fichier ici ou
+    <label class="btn-file">parcourir<input type="file" id="summary-file" accept=".pdf,.doc,.docx,.txt" onchange="handleFile(event,'summary')" /></label>`;
+  zone.classList.remove('has-file');
+}
+
 function handleDrop(event, agentId) {
   event.preventDefault();
   const file = event.dataTransfer.files[0];
-  if (file) readFileToTextarea(file, agentId);
+  if (!file) return;
+  if (agentId === 'summary') setSummaryFile(file);
+  else readFileToTextarea(file, agentId);
 }
 function handleFile(event, agentId) {
   const file = event.target.files[0];
-  if (file) readFileToTextarea(file, agentId);
+  if (!file) return;
+  if (agentId === 'summary') setSummaryFile(file);
+  else readFileToTextarea(file, agentId);
 }
-function readFileToTextarea(file, agentId) {
+async function readFileToTextarea(file, agentId) {
   const textarea = document.getElementById(`${agentId}-input`);
+
   if (file.type === 'text/plain') {
     const reader = new FileReader();
     reader.onload = e => { textarea.value = e.target.result; };
     reader.readAsText(file);
-  } else {
-    textarea.value = `[Fichier : ${file.name}]\n\nCollez le texte extrait ici.`;
+    return;
+  }
+
+  textarea.value    = 'Extraction du texte en cours…';
+  textarea.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      textarea.value = `Erreur : ${err.detail || 'Impossible d\'extraire le texte du document.'}`;
+      return;
+    }
+    const data = await response.json();
+    textarea.value = data.text;
+  } catch (e) {
+    textarea.value = `Erreur : ${e.message}`;
+  } finally {
+    textarea.disabled = false;
   }
 }
 
@@ -506,3 +836,16 @@ function reuseHistory(agentId, dataJson) {
 checkOllamaStatus();
 setInterval(checkOllamaStatus, 30000);
 loadDashboard();
+cleanerInitSSE();
+cleanerRequestNotificationPermission();
+fetch('/api/cleaner/settings')
+  .then(r => r.json())
+  .then(s => {
+    cleanerStartCountdown(s.interval_minutes * 60);
+    const sel = document.getElementById('cleaner-interval-select');
+    if (sel) {
+      const val = String(s.interval_minutes * 60);
+      if ([...sel.options].some(o => o.value === val)) sel.value = val;
+    }
+  })
+  .catch(() => {});
