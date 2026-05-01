@@ -6,8 +6,6 @@ let cleanerEventSource = null;
 let cleanerBadgeCount  = 0;
 let cleanerProposals   = [];
 let cleanerSelected    = new Set();
-let cleanerCountdown   = 3600;
-let cleanerTimer       = null;
 
 function cleanerUpdateBadge(count) {
   const badge = document.getElementById('cleaner-badge');
@@ -44,33 +42,6 @@ function cleanerInitSSE() {
   };
 }
 
-function cleanerStartCountdown(seconds) {
-  clearInterval(cleanerTimer);
-  cleanerCountdown = seconds;
-  cleanerTickDown();
-  cleanerTimer = setInterval(cleanerTickDown, 1000);
-}
-
-function cleanerTickDown() {
-  const el = document.getElementById('cleaner-countdown');
-  if (!el) return;
-  if (cleanerCountdown <= 0) { clearInterval(cleanerTimer); return; }
-  cleanerCountdown--;
-  el.textContent = cleanerCountdown < 60
-    ? cleanerCountdown + 's'
-    : Math.round(cleanerCountdown / 60) + ' min';
-}
-
-function cleanerChangeInterval() {
-  const select = document.getElementById('cleaner-interval-select');
-  const seconds = parseInt(select.value);
-  fetch('/api/cleaner/settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ interval_minutes: Math.max(1, Math.round(seconds / 60)) }),
-  });
-  cleanerStartCountdown(seconds);
-}
 
 async function cleanerLoadProposals() {
   const r = await fetch('/api/cleaner/proposals');
@@ -223,7 +194,7 @@ function cleanerScanDone(found) {
   const dot  = document.getElementById('cleaner-monitor-dot');
   const text = document.getElementById('cleaner-monitor-text');
   if (dot)  dot.classList.remove('scanning');
-  if (text) text.innerHTML = `Surveillance active · prochain scan dans <strong id="cleaner-countdown">${cleanerCountdown}s</strong>`;
+  if (text) text.textContent = 'Prêt à analyser';
   const msg = found > 0 ? `${found} élément(s) détecté(s)` : 'Scan terminé — aucun nouveau fichier';
   cleanerAddLog(found > 0 ? 'found' : 'clean', msg);
   if (found > 0) cleanerLoadProposals();
@@ -838,14 +809,3 @@ setInterval(checkOllamaStatus, 30000);
 loadDashboard();
 cleanerInitSSE();
 cleanerRequestNotificationPermission();
-fetch('/api/cleaner/settings')
-  .then(r => r.json())
-  .then(s => {
-    cleanerStartCountdown(s.interval_minutes * 60);
-    const sel = document.getElementById('cleaner-interval-select');
-    if (sel) {
-      const val = String(s.interval_minutes * 60);
-      if ([...sel.options].some(o => o.value === val)) sel.value = val;
-    }
-  })
-  .catch(() => {});
