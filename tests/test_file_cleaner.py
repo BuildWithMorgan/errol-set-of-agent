@@ -1,7 +1,7 @@
 import json
 import pytest
 from pathlib import Path
-from tools.file_cleaner import get_files_to_scan, classify_file, scan_folders
+from tools.file_cleaner import get_files_to_scan, classify_file, scan_folders, extract_text
 
 MOCK_CLASSIFICATION = {
     "client": "Dupont",
@@ -101,3 +101,25 @@ def test_get_files_to_scan_excludes_old_files(tmp_path):
     os.utime(old_file, (old_mtime, old_mtime))
     files = get_files_to_scan([str(tmp_path)], max_age_days=30)
     assert old_file not in files
+
+
+def test_extract_text_from_txt(tmp_path):
+    f = tmp_path / "note.txt"
+    f.write_text("Facture du 01/04/2026 — Client Racon", encoding="utf-8")
+    result = extract_text(f)
+    assert "Facture" in result
+    assert "Racon" in result
+
+
+def test_extract_text_returns_empty_for_image(tmp_path):
+    f = tmp_path / "photo.jpg"
+    f.write_bytes(b"\xff\xd8\xff")  # minimal JPEG header
+    result = extract_text(f)
+    assert result == ""
+
+
+def test_extract_text_returns_empty_on_corrupt_pdf(tmp_path):
+    f = tmp_path / "broken.pdf"
+    f.write_bytes(b"not a real pdf")
+    result = extract_text(f)
+    assert result == ""

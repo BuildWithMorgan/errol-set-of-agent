@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import uuid
@@ -18,6 +19,29 @@ REQUIRED_KEYS = {"client", "document_type", "legal_value", "proposed_name",
 
 VALID_ACTIONS = {"rename_and_move", "delete", "review_manually"}
 
+TEXT_EXTRACTABLE = {".pdf", ".docx", ".txt"}
+MAX_CONTENT_CHARS = 1500
+
+
+def extract_text(file_path: Path) -> str:
+    ext = file_path.suffix.lower()
+    try:
+        if ext == ".pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(file_path.read_bytes()))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages[:3])
+            return text[:MAX_CONTENT_CHARS].strip()
+        if ext == ".docx":
+            from docx import Document
+            doc = Document(io.BytesIO(file_path.read_bytes()))
+            text = "\n".join(p.text for p in doc.paragraphs)
+            return text[:MAX_CONTENT_CHARS].strip()
+        if ext == ".txt":
+            return file_path.read_text(encoding="utf-8", errors="replace")[:MAX_CONTENT_CHARS].strip()
+    except Exception:
+        pass
+    return ""
+
 
 def get_files_to_scan(folders: list, max_age_days: int = 30) -> list:
     cutoff = datetime.now() - timedelta(days=max_age_days)
@@ -34,11 +58,14 @@ def get_files_to_scan(folders: list, max_age_days: int = 30) -> list:
 
 
 def classify_file(file_path: Path) -> dict:
+    content = extract_text(file_path) if file_path.suffix.lower() in TEXT_EXTRACTABLE else ""
+    content_block = f"\nContenu extrait :\n{content}" if content else "\n(fichier non lisible — classement sur le nom uniquement)"
+
     prompt = f"""Tu es un assistant de gestion documentaire pour un cabinet d'avocats français.
-Analyse ce nom de fichier et génère une proposition de classement.
+Analyse ce fichier et génère une proposition de classement.
 
 Nom du fichier : {file_path.name}
-Dossier actuel : {file_path.parent.name}
+Dossier actuel : {file_path.parent.name}{content_block}
 
 Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après :
 {{
@@ -55,7 +82,8 @@ Règles :
 - Si le fichier est une capture d'écran ou un fichier temporaire : action = "delete"
 - Si tu ne peux pas identifier le client : action = "review_manually"
 - Sinon : action = "rename_and_move"
-- proposed_name doit suivre le format YYYY-MM-DD_NomClient_Type.ext"""
+- proposed_name doit suivre le format YYYY-MM-DD_NomClient_Type.ext
+- La date dans proposed_name doit être extraite du contenu du fichier (ex: date de la facture, date du contrat). Si introuvable, utilise la date du jour."""
 
     try:
         response = httpx.post(
