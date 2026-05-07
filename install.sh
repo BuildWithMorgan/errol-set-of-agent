@@ -58,8 +58,8 @@ if [ ! -f ".env" ]; then
   echo "⚙️  Configuration de l'environnement..."
   cp .env.example .env
   # Set the correct model
-  sed -i '' 's/OLLAMA_MODEL=.*/OLLAMA_MODEL=qwen3-coder-next/' .env
-  echo "✅ Fichier .env créé avec le modèle qwen3-coder-next"
+  sed -i '' 's/OLLAMA_MODEL=.*/OLLAMA_MODEL=llama3.1:8b/' .env
+  echo "✅ Fichier .env créé avec le modèle llama3.1:8b"
   echo ""
   echo "⚠️  Pensez à vérifier le chemin OneDrive dans .env :"
   echo "    ONEDRIVE_PATH=/Users/$(whoami)/OneDrive"
