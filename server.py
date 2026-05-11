@@ -22,6 +22,9 @@ from fastapi.responses import StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pypdf import PdfReader
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import tools.file_cleaner as file_cleaner
 import tools.outlook_monitor as outlook_monitor
 from prompts import build_prompt, build_input_summary, AGENT_LABELS
