@@ -1,7 +1,9 @@
 import io
 import json
 import os
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -21,6 +23,40 @@ VALID_ACTIONS = {"rename_and_move", "delete", "review_manually"}
 
 TEXT_EXTRACTABLE = {".pdf", ".docx", ".txt"}
 MAX_CONTENT_CHARS = 1500
+
+SCREENSHOT_KEYWORDS = ["capture d'écran", "capture_d_ecran", "screenshot", "screen shot", "screen_shot"]
+TEMP_EXTENSIONS = {".tmp", ".temp"}
+
+
+def fast_classify(file_path: Path) -> dict | None:
+    name = file_path.name
+    name_lower = name.lower()
+
+    # Word/Excel lock files
+    if name.startswith("~$"):
+        return {
+            "client": None, "document_type": "fichier_temporaire", "legal_value": False,
+            "proposed_name": name, "proposed_subfolder": "Divers",
+            "reason": "Fichier temporaire Office détecté", "action": "delete",
+        }
+
+    # Temp files by extension
+    if file_path.suffix.lower() in TEMP_EXTENSIONS:
+        return {
+            "client": None, "document_type": "fichier_temporaire", "legal_value": False,
+            "proposed_name": name, "proposed_subfolder": "Divers",
+            "reason": "Fichier temporaire détecté par extension", "action": "delete",
+        }
+
+    # Screenshots by name pattern
+    if any(p in name_lower for p in SCREENSHOT_KEYWORDS):
+        return {
+            "client": None, "document_type": "capture_ecran", "legal_value": False,
+            "proposed_name": name, "proposed_subfolder": "Divers",
+            "reason": "Capture d'écran détectée par le nom", "action": "delete",
+        }
+
+    return None
 
 
 def extract_text(file_path: Path) -> str:
@@ -89,7 +125,7 @@ Règles :
         response = httpx.post(
             f"{OLLAMA_URL}/api/generate",
             json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            timeout=30.0,
+            timeout=60.0,
         )
         response.raise_for_status()
         raw = response.json()["response"].strip()
@@ -116,19 +152,23 @@ def scan_folders(folders: list, max_age_days: int = 30, known_paths: set = None,
         known_paths = set()
 
     onedrive = os.getenv("ONEDRIVE_PATH", str(Path.home() / "OneDrive"))
-    proposals = []
 
     all_files = [f for f in get_files_to_scan(folders, max_age_days) if str(f) not in known_paths]
     total = len(all_files)
 
-    for idx, file_path in enumerate(all_files, 1):
-        if progress_cb:
-            progress_cb(idx, total)
-        classification = classify_file(file_path)
+    counter_lock = threading.Lock()
+    counter = [0]
+    proposals = []
+    proposals_lock = threading.Lock()
+
+    def process_file(file_path: Path):
+        classification = fast_classify(file_path) or classify_file(file_path)
+
         if classification.get("action") not in VALID_ACTIONS:
             classification["action"] = "review_manually"
+
         destination = str(Path(onedrive) / classification["proposed_subfolder"])
-        proposals.append({
+        proposal = {
             "id": uuid.uuid4().hex,
             "detected_at": datetime.now().isoformat(timespec="seconds"),
             "source": "file",
@@ -138,6 +178,24 @@ def scan_folders(folders: list, max_age_days: int = 30, known_paths: set = None,
             "proposed_destination": destination,
             "action": classification["action"],
             "ai_reason": classification["reason"],
-        })
+        }
+
+        with counter_lock:
+            counter[0] += 1
+            idx = counter[0]
+
+        if progress_cb:
+            progress_cb(idx, total)
+
+        return proposal
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(process_file, f) for f in all_files]
+        for future in as_completed(futures):
+            try:
+                with proposals_lock:
+                    proposals.append(future.result())
+            except Exception:
+                pass
 
     return proposals
