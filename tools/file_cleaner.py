@@ -111,16 +111,19 @@ Règles :
         }
 
 
-def scan_folders(folders: list, max_age_days: int = 30, known_paths: set = None) -> list:
+def scan_folders(folders: list, max_age_days: int = 30, known_paths: set = None, progress_cb=None) -> list:
     if known_paths is None:
         known_paths = set()
 
     onedrive = os.getenv("ONEDRIVE_PATH", str(Path.home() / "OneDrive"))
     proposals = []
 
-    for file_path in get_files_to_scan(folders, max_age_days):
-        if str(file_path) in known_paths:
-            continue
+    all_files = [f for f in get_files_to_scan(folders, max_age_days) if str(f) not in known_paths]
+    total = len(all_files)
+
+    for idx, file_path in enumerate(all_files, 1):
+        if progress_cb:
+            progress_cb(idx, total)
         classification = classify_file(file_path)
         if classification.get("action") not in VALID_ACTIONS:
             classification["action"] = "review_manually"

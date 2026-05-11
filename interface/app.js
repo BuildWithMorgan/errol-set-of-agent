@@ -31,7 +31,16 @@ function cleanerInitSSE() {
         cleanerLoadProposals();
       }
     }
+    if (event.type === 'scan_progress') {
+      const bar = document.getElementById('cleaner-scan-bar');
+      const text = document.getElementById('cleaner-monitor-text');
+      const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
+      if (bar)  bar.style.width = pct + '%';
+      if (text) text.innerHTML = `Analyse en cours… <strong>${event.current} / ${event.total}</strong>`;
+    }
     if (event.type === 'scan_complete') {
+      const bar = document.getElementById('cleaner-scan-bar');
+      if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.style.width = '0%'; }, 600); }
       cleanerScanDone(event.found);
     }
   };
@@ -178,16 +187,8 @@ async function cleanerTriggerScan() {
   const bar  = document.getElementById('cleaner-scan-bar');
   if (dot)  dot.classList.add('scanning');
   if (text) text.innerHTML = 'Analyse en cours… <strong>Bureau + Téléchargements</strong>';
-  let prog = 0;
-  const pTimer = setInterval(() => {
-    prog = Math.min(prog + Math.random() * 12, 95);
-    if (bar) bar.style.width = prog + '%';
-  }, 150);
+  if (bar)  bar.style.width = '0%';
   await fetch('/api/cleaner/scan', { method: 'POST' });
-  setTimeout(() => {
-    clearInterval(pTimer);
-    if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.style.width = '0%'; }, 400); }
-  }, 1800);
 }
 
 function cleanerScanDone(found) {

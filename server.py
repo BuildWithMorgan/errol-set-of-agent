@@ -121,8 +121,15 @@ def run_scan() -> None:
         proposals = read_proposals()
         known_paths = {p["original_path"] for p in proposals}
 
+        def _progress(current, total):
+            if _event_loop:
+                asyncio.run_coroutine_threadsafe(
+                    broadcast_sse({"type": "scan_progress", "current": current, "total": total}),
+                    _event_loop,
+                )
+
         new_proposals = file_cleaner.scan_folders(
-            settings["folders"], settings["max_age_days"], known_paths
+            settings["folders"], settings["max_age_days"], known_paths, progress_cb=_progress
         )
 
         if settings.get("outlook_enabled"):
