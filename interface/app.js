@@ -410,7 +410,8 @@ async function runAgent(agentId) {
         try {
           const data = JSON.parse(line);
           if (data.error) {
-            resultText.textContent = `Erreur : Ollama est inaccessible. Vérifiez que le service est actif.\n\nDétail : ${data.message}`;
+            const errDetail = data.message || data.error;
+            resultText.textContent = `Erreur : Ollama est inaccessible. Vérifiez que le service est actif.\n\nDétail : ${errDetail}`;
             resultText.className = 'result-text';
             break;
           }
