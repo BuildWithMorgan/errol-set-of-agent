@@ -177,7 +177,7 @@ async function cleanerTriggerScan() {
   const text = document.getElementById('cleaner-monitor-text');
   const bar  = document.getElementById('cleaner-scan-bar');
   if (dot)  dot.classList.add('scanning');
-  if (text) text.innerHTML = 'Analyse en cours… <strong>Téléchargements + Bureau</strong>';
+  if (text) text.innerHTML = 'Analyse en cours… <strong>Bureau</strong>';
   let prog = 0;
   const pTimer = setInterval(() => {
     prog = Math.min(prog + Math.random() * 12, 95);
