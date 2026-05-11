@@ -89,7 +89,7 @@ def get_cleaner_settings() -> dict:
         "interval_minutes": int(os.getenv("CLEANER_INTERVAL_MINUTES", "60")),
         "folders": os.getenv(
             "CLEANER_FOLDERS",
-            f"{Path.home()}/Desktop"
+            f"{Path.home()}/Desktop,{Path.home()}/Downloads"
         ).split(","),
         "max_age_days": int(os.getenv("CLEANER_MAX_FILE_AGE_DAYS", "3650")),
         "outlook_enabled": outlook_monitor.is_configured(),

@@ -1,1 +1,1 @@
-{"interval_minutes": 60, "folders": ["~/Desktop"], "max_age_days": 3650, "outlook_enabled": false}
+{"interval_minutes": 60, "folders": ["~/Desktop", "~/Downloads"], "max_age_days": 3650, "outlook_enabled": false}
