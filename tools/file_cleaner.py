@@ -6,6 +6,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 import httpx
 
@@ -28,7 +29,7 @@ SCREENSHOT_KEYWORDS = ["capture d'écran", "capture_d_ecran", "screenshot", "scr
 TEMP_EXTENSIONS = {".tmp", ".temp"}
 
 
-def fast_classify(file_path: Path) -> dict | None:
+def fast_classify(file_path: Path) -> Optional[dict]:
     name = file_path.name
     name_lower = name.lower()
 
