@@ -91,7 +91,7 @@ def get_cleaner_settings() -> dict:
             "CLEANER_FOLDERS",
             f"{Path.home()}/Desktop"
         ).split(","),
-        "max_age_days": int(os.getenv("CLEANER_MAX_FILE_AGE_DAYS", "30")),
+        "max_age_days": int(os.getenv("CLEANER_MAX_FILE_AGE_DAYS", "3650")),
         "outlook_enabled": outlook_monitor.is_configured(),
     }
     if CLEANER_SETTINGS_FILE.exists():
