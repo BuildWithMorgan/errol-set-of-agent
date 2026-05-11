@@ -27,11 +27,16 @@ MAX_CONTENT_CHARS = 1500
 
 SCREENSHOT_KEYWORDS = ["capture d'écran", "capture_d_ecran", "screenshot", "screen shot", "screen_shot"]
 TEMP_EXTENSIONS = {".tmp", ".temp"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+SPREADSHEET_EXTENSIONS = {".xlsx", ".xls"}
+# Only these extensions are worth sending to Ollama (readable content)
+AI_WORTHY_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt"}
 
 
 def fast_classify(file_path: Path) -> Optional[dict]:
     name = file_path.name
     name_lower = name.lower()
+    ext = file_path.suffix.lower()
 
     # Word/Excel lock files
     if name.startswith("~$"):
@@ -42,7 +47,7 @@ def fast_classify(file_path: Path) -> Optional[dict]:
         }
 
     # Temp files by extension
-    if file_path.suffix.lower() in TEMP_EXTENSIONS:
+    if ext in TEMP_EXTENSIONS:
         return {
             "client": None, "document_type": "fichier_temporaire", "legal_value": False,
             "proposed_name": name, "proposed_subfolder": "Divers",
@@ -55,6 +60,22 @@ def fast_classify(file_path: Path) -> Optional[dict]:
             "client": None, "document_type": "capture_ecran", "legal_value": False,
             "proposed_name": name, "proposed_subfolder": "Divers",
             "reason": "Capture d'écran détectée par le nom", "action": "delete",
+        }
+
+    # Images — Ollama can't read pixel content, classify by name heuristic
+    if ext in IMAGE_EXTENSIONS:
+        return {
+            "client": None, "document_type": "capture_ecran", "legal_value": False,
+            "proposed_name": name, "proposed_subfolder": "Divers",
+            "reason": "Image non lisible par l'IA — à vérifier manuellement", "action": "review_manually",
+        }
+
+    # Spreadsheets — no text extraction available, Ollama only sees the filename
+    if ext in SPREADSHEET_EXTENSIONS:
+        return {
+            "client": None, "document_type": "inconnu", "legal_value": False,
+            "proposed_name": name, "proposed_subfolder": "Divers",
+            "reason": "Tableur non lisible par l'IA — à vérifier manuellement", "action": "review_manually",
         }
 
     return None
