@@ -82,9 +82,10 @@ function collectInput(agentId) {
   }
   if (agentId === 'content') {
     return {
-      agent: 'content',
-      input:        document.getElementById('content-input')?.value.trim() || '',
-      content_type: document.querySelector('input[name="content-type"]:checked')?.value || 'linkedin',
+      agent:          'content',
+      mode:           'generate',
+      input:          document.getElementById('content-input')?.value.trim() || '',
+      starting_point: _contentStartingPoint,
     };
   }
   return {
@@ -98,6 +99,12 @@ async function runAgent(agentId) {
   const resultBox  = document.getElementById(`${agentId}-result`);
   const resultText = document.getElementById(`${agentId}-result-text`);
   const submitBtn  = document.querySelector(`#agent-${agentId} .btn-primary`);
+
+  // Hide refinement strip when starting a new generation
+  if (agentId === 'content') {
+    const strip = document.getElementById('content-refine-strip');
+    if (strip) strip.style.display = 'none';
+  }
 
   // For summary: if a file is staged, upload and extract text first
   if (agentId === 'summary' && summaryPendingFile) {
@@ -175,6 +182,12 @@ async function runAgent(agentId) {
     // Show save-template button
     const footer = document.getElementById(`${agentId}-result-footer`);
     if (footer) footer.style.display = 'block';
+
+    // Show refinement strip for content agent
+    if (agentId === 'content') {
+      const strip = document.getElementById('content-refine-strip');
+      if (strip) strip.style.display = 'flex';
+    }
 
     // Show feedback row and reset thumbs
     const feedbackRow = document.getElementById(`${agentId}-feedback-row`);
@@ -561,6 +574,83 @@ function reuseHistory(agentId, dataJson) {
 checkOllamaStatus();
 setInterval(checkOllamaStatus, 30000);
 loadDashboard();
+
+// ─── Content agent ────────────────────────────────────────────────────────────
+let _contentStartingPoint = 'sujet';
+
+function contentSetType(type) {
+  _contentStartingPoint = type;
+  document.querySelectorAll('.content-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  const placeholders = {
+    sujet:     'Ex : Les nouvelles obligations du comité de mission en 2025',
+    brouillon: "Collez votre brouillon ici, l'IA va le reformuler dans votre style",
+    evenement: 'Ex : Conférence sur les sociétés à mission le 15 mai à Paris',
+    article:   "Ex : La raison d'être : définition, enjeux et obligations légales",
+  };
+  const ta = document.getElementById('content-input');
+  if (ta) ta.placeholder = placeholders[type] || '';
+}
+
+async function contentRefine(instruction) {
+  const strip      = document.getElementById('content-refine-strip');
+  const resultText = document.getElementById('content-result-text');
+  const originalPost = resultText?.textContent?.trim() || '';
+  if (!originalPost || !instruction) return;
+
+  if (strip) strip.style.display = 'none';
+  resultText.className = 'result-text loading';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent:         'content',
+        mode:          'refine',
+        original_post: originalPost,
+        instruction,
+      }),
+    });
+    if (!response.ok) throw new Error(`Erreur serveur : ${response.status}`);
+
+    resultText.textContent = '';
+    resultText.className   = 'result-text';
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      for (const line of chunk.split('\n').filter(l => l.trim())) {
+        try {
+          const data = JSON.parse(line);
+          if (data.error) {
+            resultText.textContent = `Erreur : ${data.message || data.error}`;
+            resultText.className   = 'result-text';
+            break;
+          }
+          if (data.response) resultText.textContent += data.response;
+        } catch { /* partial chunk */ }
+      }
+    }
+  } catch (err) {
+    resultText.textContent = `Erreur : ${err.message}`;
+    resultText.className   = 'result-text';
+  } finally {
+    if (strip) strip.style.display = 'flex';
+  }
+}
+
+function contentRefineCustom() {
+  const input = document.getElementById('content-refine-input');
+  const instruction = input?.value.trim();
+  if (!instruction) return;
+  if (input) input.value = '';
+  contentRefine(instruction);
+}
 
 // ─── Cleaner ──────────────────────────────────────────────────────────────────
 
