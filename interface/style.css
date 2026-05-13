@@ -377,21 +377,82 @@ textarea::placeholder {
   color: var(--white);
 }
 
-/* ─── Content type selector ──────────────────────────────── */
-.content-type-selector {
+/* ─── Content type pills ─────────────────────────────────── */
+.content-type-pills {
   display: flex;
-  gap: 16px;
-  font-size: 13.5px;
-  color: var(--gray-5);
-}
-.content-type-selector label {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  cursor: pointer;
+  flex-wrap: wrap;
 }
-.content-type-selector input[type="radio"] {
-  accent-color: var(--blue);
+.content-pill {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--gray-3);
+  background: var(--white);
+  color: var(--gray-5);
+  font-size: 12.5px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.content-pill:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.content-pill.active {
+  background: var(--blue-lt);
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* ─── Content refinement strip ───────────────────────────── */
+.content-refine-strip {
+  background: var(--white);
+  border: 1px solid var(--gray-3);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.content-refine-quick {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.content-refine-btn {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--gray-3);
+  background: var(--gray-1);
+  color: var(--gray-5);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.content-refine-btn:hover {
+  border-color: var(--blue);
+  background: var(--blue-lt);
+  color: var(--blue);
+}
+.content-refine-custom {
+  display: flex;
+  gap: 8px;
+}
+.content-refine-custom input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--gray-3);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--black);
+  background: var(--white);
+}
+.content-refine-custom input:focus {
+  outline: none;
+  border-color: var(--blue);
 }
 
 /* ─── Result Card ────────────────────────────────────────── */
