@@ -43,19 +43,57 @@ def build_prompt(agent_id: str, body: dict) -> str:
         )
 
     if agent_id == "content":
-        content_type = body.get("content_type", "linkedin")
-        if content_type == "linkedin":
+        mode = body.get("mode", "generate")
+
+        STYLE_RULES = (
+            "Respecte strictement ton style :\n"
+            "- Paragraphes courts (3-4 phrases max)\n"
+            "- MAJUSCULES pour les concepts juridiques clés : SOCIÉTÉ À MISSION, COMITÉ DE MISSION, RAISON D'ÊTRE, OBJET SOCIAL\n"
+            '- Listes avec " - " si nécessaire\n'
+            '- Vouvoiement ("vous")\n'
+            "- Pas d'emojis\n"
+            '- Ne commence jamais par "Bonjour" ou "Je suis ravi"\n'
+            "- Termine par 3-5 hashtags dont #sociétéamission"
+        )
+
+        if mode == "refine":
             return (
-                "Tu es Errol Cohen, avocat spécialisé en sociétés à mission. "
-                "Rédige en français un post LinkedIn engageant dans ton style : "
-                "ton d'expert accessible, phrases courtes, appel à l'action final.\n\n"
-                f"Sujet : {body.get('input', '')}"
+                "Tu es Errol Cohen, avocat spécialisé en sociétés à mission au cabinet Le Play Avocats.\n"
+                "Voici un post LinkedIn que tu as rédigé :\n\n"
+                "---\n"
+                f"{body.get('original_post', '')}\n"
+                "---\n\n"
+                f"Instruction : {body.get('instruction', '')}\n\n"
+                + STYLE_RULES + "\n\n"
+                "Retourne uniquement le post révisé, sans commentaire ni explication."
             )
+
+        starting_point = body.get("starting_point", "sujet")
+        user_input = body.get("input", "")
+        base = "Tu es Errol Cohen, avocat spécialisé en sociétés à mission au cabinet Le Play Avocats.\n"
+
+        if starting_point == "article":
+            return (
+                base
+                + "Rédige en français un article juridique structuré sur le sujet suivant.\n"
+                "Structure : introduction, 3 points numérotés développés, conclusion.\n"
+                "400-600 mots. Ton expert et accessible. Pas d'emojis. Vouvoiement.\n\n"
+                f"Sujet : {user_input}"
+            )
+
+        instructions = {
+            "sujet":     "Rédige un post LinkedIn en français sur le sujet suivant.",
+            "brouillon": "Reformule et améliore ce brouillon en respectant ton style.",
+            "evenement": "Rédige un post LinkedIn en français autour de cet événement.",
+        }
+        action = instructions.get(starting_point, instructions["sujet"])
+
         return (
-            "Tu es Errol Cohen, avocat spécialisé en sociétés à mission. "
-            "Rédige en français un article juridique structuré "
-            "(introduction, développement en 3 points, conclusion) sur le sujet suivant.\n\n"
-            f"Sujet : {body.get('input', '')}"
+            base
+            + f"{action}\n"
+            "150-300 mots. Structure : accroche → explication → enjeu pour le lecteur → appel à l'action.\n\n"
+            + STYLE_RULES + "\n\n"
+            f"Contenu : {user_input}"
         )
 
     raise ValueError(f"Unknown agent_id: {agent_id!r}")
@@ -65,4 +103,6 @@ def build_input_summary(agent_id: str, body: dict) -> str:
     f = body.get("fields", {})
     if agent_id == "invoice":
         return f"{f.get('description', '')} — {f.get('client', '')}"
+    if agent_id == "content" and body.get("mode") == "refine":
+        return (body.get("instruction") or "")[:200]
     return (body.get("input") or "")[:200]
