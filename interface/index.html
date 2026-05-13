@@ -187,11 +187,13 @@
         <p class="agent-desc">Générez un post LinkedIn ou un article juridique dans votre style éditorial.</p>
         <div class="template-pills" id="content-templates"></div>
         <div class="input-card">
-          <div class="content-type-selector">
-            <label><input type="radio" name="content-type" value="linkedin" checked /> Post LinkedIn</label>
-            <label><input type="radio" name="content-type" value="article" /> Article juridique</label>
+          <div class="content-type-pills" id="content-type-pills">
+            <button class="content-pill active" data-type="sujet"     onclick="contentSetType('sujet')">Sujet</button>
+            <button class="content-pill"        data-type="brouillon" onclick="contentSetType('brouillon')">Brouillon</button>
+            <button class="content-pill"        data-type="evenement" onclick="contentSetType('evenement')">Événement</button>
+            <button class="content-pill"        data-type="article"   onclick="contentSetType('article')">Article juridique</button>
           </div>
-          <textarea id="content-input" rows="4" placeholder="Ex : Rédige un post LinkedIn sur les nouvelles obligations des sociétés à mission en 2025"></textarea>
+          <textarea id="content-input" rows="4" placeholder="Ex : Les nouvelles obligations du comité de mission en 2025"></textarea>
           <button class="btn-primary" onclick="runAgent('content')">Générer</button>
         </div>
         <div class="result-area" id="content-result" style="display:none">
@@ -206,6 +208,19 @@
           <div class="result-text" id="content-result-text"></div>
           <div class="result-footer" id="content-result-footer" style="display:none">
             <button class="btn-save-template" onclick="promptSaveTemplate('content')">＋ Sauvegarder ce modèle</button>
+          </div>
+        </div>
+        <div class="content-refine-strip" id="content-refine-strip" style="display:none">
+          <div class="content-refine-quick">
+            <button class="content-refine-btn" onclick="contentRefine('Rends ce post plus court')">Plus court</button>
+            <button class="content-refine-btn" onclick="contentRefine('Développe ce post, rends-le plus long')">Plus long</button>
+            <button class="content-refine-btn" onclick="contentRefine('Reformule uniquement l\'introduction, garde le reste')">Reformuler l'intro</button>
+            <button class="content-refine-btn" onclick="contentRefine('Ajoute un appel à l\'action percutant à la fin')">Ajouter un CTA</button>
+            <button class="content-refine-btn" onclick="contentRefine('Change le ton, rends-le plus percutant et direct')">Changer le ton</button>
+          </div>
+          <div class="content-refine-custom">
+            <input type="text" id="content-refine-input" placeholder="Ou dis-moi quoi changer…" onkeydown="if(event.key==='Enter') contentRefineCustom()" />
+            <button class="btn-primary" onclick="contentRefineCustom()">Raffiner</button>
           </div>
         </div>
         <div class="feedback-row" id="content-feedback-row" style="display:none">
