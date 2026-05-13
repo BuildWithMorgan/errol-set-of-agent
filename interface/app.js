@@ -1,5 +1,6 @@
 // ─── Agent switching ──────────────────────────────────────────────────────────
 let currentAgent = 'dashboard';
+let _agentModels = {};
 
 
 function navigateTo(agentId) {
@@ -13,6 +14,13 @@ function navigateTo(agentId) {
   document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
   const targetBtn = document.querySelector(`[data-agent="${agentId}"]`);
   if (targetBtn) targetBtn.classList.add('active');
+
+  const modelEl = document.getElementById('model-label');
+  if (modelEl) {
+    const model = _agentModels[agentId];
+    modelEl.textContent = model || '';
+    modelEl.style.display = model ? 'inline' : 'none';
+  }
 
   currentEl.classList.remove('active', 'entering');
   currentEl.classList.add('leaving');
@@ -49,20 +57,30 @@ document.querySelectorAll('.agent-btn').forEach(btn => {
 
 // ─── Ollama status (via server) ───────────────────────────────────────────────
 async function checkOllamaStatus() {
-  const dot   = document.getElementById('status-dot');
-  const label = document.getElementById('status-label');
+  const dot      = document.getElementById('status-dot');
+  const label    = document.getElementById('status-label');
+  const modelEl  = document.getElementById('model-label');
   try {
     const res = await fetch('/api/status');
     const data = await res.json();
     if (data.online) {
       dot.className     = 'status-dot online';
       label.textContent = 'Ollama actif';
+      if (data.agent_models) {
+        _agentModels = data.agent_models;
+        const model = _agentModels[currentAgent];
+        if (modelEl) {
+          modelEl.textContent = model || '';
+          modelEl.style.display = model ? 'inline' : 'none';
+        }
+      }
     } else {
       throw new Error('offline');
     }
   } catch {
     dot.className     = 'status-dot offline';
     label.textContent = 'Ollama hors ligne';
+    if (modelEl) modelEl.style.display = 'none';
   }
 }
 

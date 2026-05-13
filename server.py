@@ -33,6 +33,13 @@ _history_lock = asyncio.Lock()
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e4b")
 
+AGENT_MODELS = {
+    "rag":     os.getenv("MODEL_RAG",     "gemma4:e4b"),
+    "invoice": os.getenv("MODEL_INVOICE", "gemma4:e4b"),
+    "content": os.getenv("MODEL_CONTENT", "mistral:latest"),
+    "cleaner": os.getenv("MODEL_CLEANER", "mistral:latest"),
+}
+
 DATA_DIR = Path("data")
 HISTORY_FILE = DATA_DIR / "history.json"
 TEMPLATES_FILE = DATA_DIR / "templates.json"
@@ -82,10 +89,15 @@ async def status():
         async with httpx.AsyncClient(timeout=3) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
             if r.status_code == 200:
-                return {"online": True, "model": OLLAMA_MODEL}
+                return {"online": True, "model": OLLAMA_MODEL, "agent_models": AGENT_MODELS}
     except Exception:
         pass
-    return {"online": False, "model": OLLAMA_MODEL}
+    return {"online": False, "model": OLLAMA_MODEL, "agent_models": AGENT_MODELS}
+
+
+@app.get("/api/models")
+async def get_models():
+    return {"agent_models": AGENT_MODELS, "default": OLLAMA_MODEL}
 
 # ─── File upload & text extraction ───────────────────────────────────────────
 
@@ -149,7 +161,7 @@ async def generate(request: Request):
                 async with client.stream(
                     "POST",
                     f"{OLLAMA_URL}/api/generate",
-                    json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": True},
+                    json={"model": AGENT_MODELS.get(agent_id, OLLAMA_MODEL), "prompt": prompt, "stream": True},
                 ) as response:
                     async for line in response.aiter_lines():
                         if line:

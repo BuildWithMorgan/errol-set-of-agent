@@ -85,6 +85,17 @@ body {
   font-size: 12px;
 }
 
+.model-label {
+  font-size: 11px;
+  color: var(--gray-4);
+  background: var(--gray-1);
+  border: 1px solid var(--gray-2);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--font);
+  letter-spacing: 0.02em;
+}
+
 /* ─── Layout ─────────────────────────────────────────────── */
 .layout {
   display: flex;
