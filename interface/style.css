@@ -953,3 +953,203 @@ textarea.form-input { resize: vertical; }
 .cleaner-empty {
   text-align: center; padding: 32px 16px; color: var(--gray-4); font-size: 14px;
 }
+
+/* ─── Cleaner ─────────────────────────────────────────────────────── */
+
+.cleaner-scan-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cleaner-scanning {
+  font-size: 13px;
+  color: #888;
+}
+
+/* Summary banner */
+.cleaner-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 18px 24px;
+  margin-bottom: 12px;
+}
+
+.cleaner-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cleaner-count {
+  font-size: 36px;
+  font-weight: 800;
+  color: #e53e3e;
+  line-height: 1;
+}
+
+.cleaner-banner-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0D0D0D;
+}
+
+.cleaner-banner-sub {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.cleaner-stats {
+  display: flex;
+  gap: 20px;
+  padding-left: 20px;
+  border-left: 1px solid #f0f0f0;
+}
+
+.cleaner-stat {
+  text-align: center;
+}
+
+.cleaner-stat-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0D0D0D;
+}
+
+.cleaner-stat-label {
+  font-size: 9px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Table rows */
+.cleaner-row {
+  display: grid;
+  grid-template-columns: 28px 56px 1fr 160px 70px;
+  align-items: center;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  transition: opacity 0.15s;
+}
+
+.cleaner-row-unchecked {
+  opacity: 0.4;
+}
+
+.cleaner-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #e53e3e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cleaner-check:not(.checked) {
+  background: #fff;
+  border: 2px solid #ddd;
+}
+
+.cleaner-file-info {
+  min-width: 0;
+}
+
+.cleaner-filename {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0D0D0D;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cleaner-filename-struck {
+  text-decoration: line-through;
+}
+
+.cleaner-path {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cleaner-reason {
+  font-size: 11px;
+  color: #666;
+}
+
+.cleaner-size {
+  font-size: 10px;
+  color: #bbb;
+  text-align: right;
+}
+
+/* Footer */
+.cleaner-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 16px;
+}
+
+.cleaner-safe-note {
+  font-size: 11px;
+  color: #22aa44;
+  font-weight: 600;
+}
+
+.cleaner-empty-state {
+  padding: 32px;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px dashed #e0e0e0;
+  margin-top: 12px;
+}
+
+/* Danger button */
+.btn-danger {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-danger:hover {
+  background: #c53030;
+}
+
+/* Badge colours for cleaner */
+.badge-blue  { background: #ebf4ff; color: #2b6cb0; }
+.badge-green { background: #f0fff4; color: #276749; }
+.badge-grey  { background: #f7f7f7; color: #666; }
