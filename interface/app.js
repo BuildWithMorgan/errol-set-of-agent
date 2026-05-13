@@ -597,7 +597,10 @@ async function contentRefine(instruction) {
   const strip      = document.getElementById('content-refine-strip');
   const resultText = document.getElementById('content-result-text');
   const originalPost = resultText?.textContent?.trim() || '';
-  if (!originalPost || !instruction) return;
+  if (!resultText || !originalPost || !instruction) return;
+
+  document.getElementById('content-thumb-up')?.classList.remove('active');
+  document.getElementById('content-thumb-down')?.classList.remove('active');
 
   if (strip) strip.style.display = 'none';
   resultText.className = 'result-text loading';
