@@ -1,7 +1,23 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-echo "Mise à jour de l'application Le Play Avocats..."
+
+echo "========================================"
+echo "  Mise à jour — Le Play Avocats IA"
+echo "========================================"
+echo ""
+
+echo "📦 Récupération des dernières modifications..."
 git pull
+
+echo ""
+echo "📦 Mise à jour des dépendances Python..."
 pip3 install -r requirements.txt --quiet
-echo "Mise à jour terminée. Redémarrage du serveur..."
-python3 -m uvicorn server:app --host 0.0.0.0 --port 3000 --reload
+
+echo ""
+echo "🔄 Redémarrage du service..."
+launchctl kickstart -k "gui/$(id -u)/com.leplayavocats.ia"
+
+echo ""
+echo "✅ Mise à jour terminée !"
+echo "L'interface est disponible sur : http://localhost:3000"
+echo ""

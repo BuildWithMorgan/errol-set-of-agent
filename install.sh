@@ -70,24 +70,55 @@ else
 fi
 
 # Make scripts executable
-chmod +x start.sh update.sh
+chmod +x start.sh update.sh run-server.sh
+
+# Create logs directory
+mkdir -p "$INSTALL_DIR/logs"
+
+# Setup launchd service
+echo ""
+echo "⚙️  Installation du service automatique..."
+
+PLIST_PATH="$HOME/Library/LaunchAgents/com.leplayavocats.ia.plist"
+mkdir -p "$HOME/Library/LaunchAgents"
+
+cat > "$PLIST_PATH" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.leplayavocats.ia</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$INSTALL_DIR/run-server.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>$INSTALL_DIR</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$INSTALL_DIR/logs/server.log</string>
+  <key>StandardErrorPath</key>
+  <string>$INSTALL_DIR/logs/server-error.log</string>
+</dict>
+</plist>
+PLIST
+
+# Stop existing service if running, then load
+launchctl unload "$PLIST_PATH" 2>/dev/null || true
+launchctl load "$PLIST_PATH"
+
+echo "✅ Service installé — le serveur démarre automatiquement à chaque allumage"
 
 echo ""
 echo "========================================"
 echo "  ✅ Installation terminée !"
 echo "========================================"
 echo ""
-echo "Pour lancer l'interface :"
-echo "  cd $INSTALL_DIR && ./start.sh"
+echo "L'interface est disponible sur : http://localhost:3000"
 echo ""
-echo "Ou ouvrez start.sh directement dans le Finder."
+echo "Pour mettre à jour l'application : ./update.sh"
 echo ""
-
-# Ask to launch now
-read -p "Lancer l'interface maintenant ? (o/n) " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Oo]$ ]]; then
-  echo "🚀 Démarrage..."
-  cd "$INSTALL_DIR"
-  ./start.sh
-fi
