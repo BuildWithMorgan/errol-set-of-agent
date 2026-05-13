@@ -103,7 +103,7 @@ def test_delete_template_not_found(tmp_path, monkeypatch):
 def test_post_feedback_up(tmp_path, monkeypatch):
     monkeypatch.setattr("server.FEEDBACK_FILE", tmp_path / "feedback.json")
     (tmp_path / "feedback.json").write_text("[]")
-    response = client.post("/api/feedback", json={"agent": "letter", "rating": "up"})
+    response = client.post("/api/feedback", json={"agent": "rag", "rating": "up"})
     assert response.status_code == 201
     assert response.json()["rating"] == "up"
 
@@ -111,7 +111,7 @@ def test_post_feedback_up(tmp_path, monkeypatch):
 def test_post_feedback_invalid_rating(tmp_path, monkeypatch):
     monkeypatch.setattr("server.FEEDBACK_FILE", tmp_path / "feedback.json")
     (tmp_path / "feedback.json").write_text("[]")
-    response = client.post("/api/feedback", json={"agent": "letter", "rating": "meh"})
+    response = client.post("/api/feedback", json={"agent": "rag", "rating": "meh"})
     assert response.status_code == 400
 
 
@@ -192,3 +192,49 @@ def test_clear_history_already_empty(tmp_path, monkeypatch):
     response = client.delete("/api/history")
     assert response.status_code == 204
     assert json.loads((tmp_path / "history.json").read_text()) == []
+
+
+def test_removed_routes_return_404():
+    for route in ("/api/cleaner/proposals", "/api/cleaner/events"):
+        r = client.get(route)
+        assert r.status_code == 404, f"Expected 404 for {route}, got {r.status_code}"
+
+
+def test_cleaner_scan_returns_proposals(monkeypatch):
+    monkeypatch.setattr(
+        "server.file_cleaner.scan_for_deletion",
+        lambda folders: ([
+            {"id": "abc", "path": "/tmp/file.pdf", "filename": "file.pdf",
+             "type": "PDF", "reason": "Doublon probable", "size_bytes": 1024}
+        ], 5)
+    )
+    monkeypatch.setattr("server.get_cleaner_settings", lambda: {"folders": ["/tmp"]})
+    r = client.post("/api/cleaner/scan")
+    assert r.status_code == 200
+    data = r.json()
+    assert "proposals" in data
+    assert "total_scanned" in data
+    assert "total_size_bytes" in data
+    assert data["total_scanned"] == 5
+    assert len(data["proposals"]) == 1
+    assert data["proposals"][0]["type"] == "PDF"
+
+
+def test_cleaner_apply_deletes_files(tmp_path):
+    f = tmp_path / "old.pdf"
+    f.write_text("content")
+    r = client.post("/api/cleaner/apply", json={"paths": [str(f)]})
+    assert r.status_code == 200
+    data = r.json()
+    assert str(f) in data["deleted"]
+    assert not f.exists()
+
+
+def test_cleaner_apply_handles_missing_file(tmp_path):
+    missing = str(tmp_path / "gone.pdf")
+    r = client.post("/api/cleaner/apply", json={"paths": [missing]})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["deleted"] == []
+    assert len(data["errors"]) == 1
+    assert "gone.pdf" in data["errors"][0]["path"]

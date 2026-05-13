@@ -2,7 +2,6 @@ import asyncio
 import io
 import json
 import os
-import threading
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -10,7 +9,6 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 import httpx
-from apscheduler.schedulers.background import BackgroundScheduler
 from docx import Document
 from docx.shared import Pt, RGBColor
 from reportlab.lib.pagesizes import A4
@@ -26,7 +24,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import tools.file_cleaner as file_cleaner
-import tools.outlook_monitor as outlook_monitor
 from prompts import build_prompt, build_input_summary, AGENT_LABELS
 
 _history_lock = asyncio.Lock()
@@ -40,24 +37,12 @@ DATA_DIR = Path("data")
 HISTORY_FILE = DATA_DIR / "history.json"
 TEMPLATES_FILE = DATA_DIR / "templates.json"
 FEEDBACK_FILE = DATA_DIR / "feedback.json"
-CLEANER_PROPOSALS_FILE = DATA_DIR / "cleaner_proposals.json"
-CLEANER_SETTINGS_FILE  = DATA_DIR / "cleaner_settings.json"
-
-_sse_clients: set = set()
-_sse_lock = asyncio.Lock()
-_event_loop: asyncio.AbstractEventLoop = None
-
-_scheduler = BackgroundScheduler()
-_scan_running = False
+CLEANER_SETTINGS_FILE = DATA_DIR / "cleaner_settings.json"
 
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
-    global _event_loop
-    _event_loop = asyncio.get_event_loop()
-    _scheduler.start()
     yield
-    _scheduler.shutdown(wait=False)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -76,85 +61,17 @@ def write_json(path: Path, data: list) -> None:
 
 # ─── Cleaner helpers ──────────────────────────────────────────────────────────
 
-def read_proposals() -> list:
-    return read_json(CLEANER_PROPOSALS_FILE)
-
-
-def write_proposals(data: list) -> None:
-    write_json(CLEANER_PROPOSALS_FILE, data)
-
-
 def get_cleaner_settings() -> dict:
     defaults = {
-        "interval_minutes": int(os.getenv("CLEANER_INTERVAL_MINUTES", "60")),
         "folders": os.getenv(
             "CLEANER_FOLDERS",
             f"{Path.home()}/Desktop,{Path.home()}/Downloads"
         ).split(","),
-        "max_age_days": int(os.getenv("CLEANER_MAX_FILE_AGE_DAYS", "3650")),
-        "outlook_enabled": outlook_monitor.is_configured(),
     }
     if CLEANER_SETTINGS_FILE.exists():
         saved = json.loads(CLEANER_SETTINGS_FILE.read_text(encoding="utf-8"))
         defaults.update(saved)
     return defaults
-
-
-async def broadcast_sse(event: dict) -> None:
-    async with _sse_lock:
-        dead = set()
-        for q in _sse_clients:
-            try:
-                q.put_nowait(event)
-            except asyncio.QueueFull:
-                dead.add(q)
-        _sse_clients.difference_update(dead)
-
-
-def run_scan() -> None:
-    global _scan_running
-    if _scan_running:
-        return
-    _scan_running = True
-    try:
-        settings = get_cleaner_settings()
-        proposals = read_proposals()
-        known_paths = {p["original_path"] for p in proposals}
-
-        def _progress(current, total):
-            if _event_loop:
-                asyncio.run_coroutine_threadsafe(
-                    broadcast_sse({"type": "scan_progress", "current": current, "total": total}),
-                    _event_loop,
-                )
-
-        new_proposals = file_cleaner.scan_folders(
-            settings["folders"], settings["max_age_days"], known_paths, progress_cb=_progress
-        )
-
-        if settings.get("outlook_enabled"):
-            email_proposals = [p for p in proposals if p["source"] == "email"]
-            known_email_ids = {p["original_path"] for p in email_proposals}
-            last_scan = None
-            if email_proposals:
-                last_scan = datetime.fromisoformat(email_proposals[-1]["detected_at"])
-            new_proposals += outlook_monitor.scan_emails(last_scan, known_email_ids)
-
-        if new_proposals:
-            proposals.extend(new_proposals)
-            write_proposals(proposals)
-
-        if _event_loop:
-            asyncio.run_coroutine_threadsafe(
-                broadcast_sse({"type": "new_proposals", "count": len(new_proposals)}),
-                _event_loop,
-            )
-            asyncio.run_coroutine_threadsafe(
-                broadcast_sse({"type": "scan_complete", "found": len(new_proposals)}),
-                _event_loop,
-            )
-    finally:
-        _scan_running = False
 
 
 # ─── Status ───────────────────────────────────────────────────────────────────
@@ -256,7 +173,7 @@ async def generate(request: Request):
                         "agent": agent_id,
                         "agent_label": AGENT_LABELS.get(agent_id, agent_id),
                         "input": build_input_summary(agent_id, body),
-                        "fields": body.get("fields"),   # None for free-text agents, dict for guided forms
+                        "fields": body.get("fields"),
                         "output": output_text,
                         "created_at": datetime.now().isoformat(),
                     })
@@ -355,17 +272,13 @@ async def post_feedback(request: Request):
 
 AGENT_LABELS_SHORT = {
     "rag":     "Consultation dossiers",
-    "letter":  "Courrier juridique",
-    "summary": "Résumé de document",
     "invoice": "Facture",
-    "hearing": "Fiche d'audience",
     "content": "Contenu",
 }
 
 
 def _make_docx(content: str, agent: str) -> bytes:
     doc = Document()
-    # Letterhead
     heading = doc.add_heading("Le Play Avocats", level=1)
     heading.runs[0].font.color.rgb = RGBColor(0x0D, 0x0D, 0x0D)
     meta = doc.add_paragraph(
@@ -373,7 +286,6 @@ def _make_docx(content: str, agent: str) -> bytes:
     )
     meta.runs[0].font.size = Pt(10)
     doc.add_paragraph("─" * 60)
-    # Body — one paragraph per line
     for line in content.split("\n"):
         doc.add_paragraph(line)
     buf = io.BytesIO()
@@ -440,51 +352,32 @@ async def export_document(request: Request):
 
 # ─── Cleaner ──────────────────────────────────────────────────────────────────
 
-@app.get("/api/cleaner/proposals")
-async def get_cleaner_proposals():
-    proposals = read_proposals()
-    return [p for p in proposals if p["status"] == "pending"]
+@app.post("/api/cleaner/scan")
+async def cleaner_scan():
+    settings = get_cleaner_settings()
+    proposals, total_scanned = file_cleaner.scan_for_deletion(settings["folders"])
+    total_size_bytes = sum(p["size_bytes"] for p in proposals)
+    return {
+        "proposals": proposals,
+        "total_scanned": total_scanned,
+        "total_size_bytes": total_size_bytes,
+    }
 
 
 @app.post("/api/cleaner/apply")
-async def apply_cleaner_proposals(request: Request):
+async def cleaner_apply(request: Request):
     body = await request.json()
-    ids = set(body.get("ids", []))
-    action_type = body.get("action", "apply")
-
-    proposals = read_proposals()
-    results = {"applied": [], "ignored": [], "errors": []}
-
-    for p in proposals:
-        if p["id"] not in ids:
-            continue
-        if action_type == "ignore":
-            p["status"] = "ignored"
-            results["ignored"].append(p["id"])
-            continue
+    paths = body.get("paths", [])
+    deleted, errors = [], []
+    for path_str in paths:
         try:
-            if p["action"] == "rename_and_move":
-                src = Path(p["original_path"])
-                dest_dir = Path(p["proposed_destination"])
-                dest_dir.mkdir(parents=True, exist_ok=True)
-                src.rename(dest_dir / p["proposed_name"])
-                p["status"] = "applied"
-                results["applied"].append(p["id"])
-            elif p["action"] == "delete":
-                Path(p["original_path"]).unlink(missing_ok=True)
-                p["status"] = "applied"
-                results["applied"].append(p["id"])
-            elif p["action"] in ("email_flag", "review_manually"):
-                p["status"] = "applied"
-                results["applied"].append(p["id"])
+            Path(path_str).unlink()
+            deleted.append(path_str)
         except FileNotFoundError:
-            p["status"] = "stale"
-            results["errors"].append({"id": p["id"], "error": "Fichier introuvable"})
+            errors.append({"path": path_str, "error": "Fichier introuvable"})
         except Exception as e:
-            results["errors"].append({"id": p["id"], "error": str(e)})
-
-    write_proposals(proposals)
-    return results
+            errors.append({"path": path_str, "error": str(e)})
+    return {"deleted": deleted, "errors": errors}
 
 
 @app.get("/api/cleaner/settings")
@@ -496,47 +389,12 @@ async def get_settings():
 async def update_settings(request: Request):
     body = await request.json()
     settings = get_cleaner_settings()
-    settings.update({k: v for k, v in body.items() if k in (
-        "interval_minutes", "folders", "max_age_days"
-    )})
+    if "folders" in body:
+        settings["folders"] = body["folders"]
     CLEANER_SETTINGS_FILE.write_text(
         json.dumps(settings, ensure_ascii=False), encoding="utf-8"
     )
     return settings
-
-
-@app.post("/api/cleaner/scan")
-async def trigger_scan():
-    threading.Thread(target=run_scan, daemon=True).start()
-    return {"status": "started"}
-
-
-@app.get("/api/cleaner/events")
-async def cleaner_events(request: Request):
-    q: asyncio.Queue = asyncio.Queue(maxsize=50)
-    async with _sse_lock:
-        _sse_clients.add(q)
-
-    async def generate() -> AsyncGenerator[str, None]:
-        try:
-            yield 'data: {"type":"connected"}\n\n'
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    event = await asyncio.wait_for(q.get(), timeout=30.0)
-                    yield f"data: {json.dumps(event)}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
-        finally:
-            async with _sse_lock:
-                _sse_clients.discard(q)
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
 
 
 # ─── Static files (must come last so /api routes are matched first) ───────────
