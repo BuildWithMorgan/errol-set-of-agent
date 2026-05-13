@@ -39,21 +39,9 @@
           <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><circle cx="11" cy="13" r="2.5"/><path d="m14.5 16.5 2 2"/></svg>
           Interroger mes dossiers
         </button>
-        <button class="agent-btn" data-agent="letter">
-          <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><path d="M10 13h4M10 17h4M10 9h1"/></svg>
-          Rédiger un courrier
-        </button>
-        <button class="agent-btn" data-agent="summary">
-          <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h6M8 17h4"/></svg>
-          Résumer un document
-        </button>
         <button class="agent-btn" data-agent="invoice">
           <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v18l-3-2-2 2-2-2-2 2-2-2-2 2V3a1 1 0 0 1 1-1z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
           Générer une facture
-        </button>
-        <button class="agent-btn" data-agent="hearing">
-          <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><path d="M12 3v4M6.3 6.3l2.8 2.8M17.7 6.3l-2.8 2.8"/><path d="M3 12h18"/><path d="M5 12l2 5h10l2-5"/><path d="M12 17v4M10 21h4"/></svg>
-          Préparer une audience
         </button>
         <button class="agent-btn" data-agent="content">
           <svg viewBox="0 0 24 24" class="agent-icon" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -136,99 +124,6 @@
         </div>
       </section>
 
-      <!-- Agent: Rédiger un courrier -->
-      <section class="agent-view" id="agent-letter">
-        <p class="agent-section-label">Rédaction juridique</p>
-        <h1 class="agent-title">Rédiger un courrier</h1>
-        <p class="agent-desc">Décrivez votre besoin en langage naturel — l'agent rédige le courrier juridique complet, prêt à envoyer.</p>
-        <div class="template-pills" id="letter-templates"></div>
-        <div class="input-card">
-          <div class="guided-form">
-            <div class="form-row">
-              <div class="form-field">
-                <label class="form-label">Destinataire *</label>
-                <input class="form-input" id="letter-recipient" type="text" placeholder="Société Martin" />
-              </div>
-              <div class="form-field">
-                <label class="form-label">Type de courrier *</label>
-                <select class="form-input" id="letter-type">
-                  <option value="mise en demeure">Mise en demeure</option>
-                  <option value="notification">Notification</option>
-                  <option value="relance">Relance</option>
-                  <option value="information">Courrier d'information</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Objet *</label>
-              <input class="form-input" id="letter-subject" type="text" placeholder="Non-respect des statuts de la société à mission" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">Faits et éléments clés</label>
-              <textarea class="form-input" id="letter-facts" rows="3" placeholder="Décrivez les faits, dates, obligations non respectées…"></textarea>
-            </div>
-          </div>
-          <button class="btn-primary" onclick="runAgent('letter')">Rédiger</button>
-        </div>
-        <div class="result-area" id="letter-result" style="display:none">
-          <div class="result-header">
-            <span>Courrier généré</span>
-            <div class="result-actions">
-              <button class="btn-copy"   onclick="copyResult('letter-result-text')">Copier</button>
-              <button class="btn-export" onclick="exportResult('letter', 'docx')">↓ Word</button>
-              <button class="btn-export btn-export-pdf" onclick="exportResult('letter', 'pdf')">↓ PDF</button>
-            </div>
-          </div>
-          <div class="result-text" id="letter-result-text"></div>
-          <div class="result-footer" id="letter-result-footer" style="display:none">
-            <button class="btn-save-template" onclick="promptSaveTemplate('letter')">＋ Sauvegarder ce modèle</button>
-          </div>
-        </div>
-        <div class="feedback-row" id="letter-feedback-row" style="display:none">
-          <span class="feedback-question">Cette réponse était-elle utile ?</span>
-          <button class="feedback-btn" id="letter-thumb-up"   onclick="sendFeedback('letter', 'up')">👍</button>
-          <button class="feedback-btn" id="letter-thumb-down" onclick="sendFeedback('letter', 'down')">👎</button>
-        </div>
-      </section>
-
-      <!-- Agent: Résumer un document -->
-      <section class="agent-view" id="agent-summary">
-        <p class="agent-section-label">Analyse documentaire</p>
-        <h1 class="agent-title">Résumer un document</h1>
-        <p class="agent-desc">Déposez un fichier ou collez le texte pour obtenir un résumé structuré en 5 points clés.</p>
-        <div class="template-pills" id="summary-templates"></div>
-        <div class="input-card">
-          <div class="drop-zone" id="summary-drop"
-            ondragover="event.preventDefault(); this.classList.add('drag-over')"
-            ondragleave="this.classList.remove('drag-over')"
-            ondrop="handleDrop(event,'summary')">
-            Glissez un fichier ici ou
-            <label class="btn-file">parcourir<input type="file" id="summary-file" accept=".pdf,.doc,.docx,.txt" onchange="handleFile(event,'summary')" /></label>
-          </div>
-          <textarea id="summary-input" rows="4" placeholder="Ou collez le texte directement ici…"></textarea>
-          <button class="btn-primary" onclick="runAgent('summary')">Résumer</button>
-        </div>
-        <div class="result-area" id="summary-result" style="display:none">
-          <div class="result-header">
-            <span>Résumé</span>
-            <div class="result-actions">
-              <button class="btn-copy"   onclick="copyResult('summary-result-text')">Copier</button>
-              <button class="btn-export" onclick="exportResult('summary', 'docx')">↓ Word</button>
-              <button class="btn-export btn-export-pdf" onclick="exportResult('summary', 'pdf')">↓ PDF</button>
-            </div>
-          </div>
-          <div class="result-text" id="summary-result-text"></div>
-          <div class="result-footer" id="summary-result-footer" style="display:none">
-            <button class="btn-save-template" onclick="promptSaveTemplate('summary')">＋ Sauvegarder ce modèle</button>
-          </div>
-        </div>
-        <div class="feedback-row" id="summary-feedback-row" style="display:none">
-          <span class="feedback-question">Cette réponse était-elle utile ?</span>
-          <button class="feedback-btn" id="summary-thumb-up"   onclick="sendFeedback('summary', 'up')">👍</button>
-          <button class="feedback-btn" id="summary-thumb-down" onclick="sendFeedback('summary', 'down')">👎</button>
-        </div>
-      </section>
-
       <!-- Agent: Générer une facture -->
       <section class="agent-view" id="agent-invoice">
         <p class="agent-section-label">Facturation</p>
@@ -285,56 +180,6 @@
         </div>
       </section>
 
-      <!-- Agent: Préparer une audience -->
-      <section class="agent-view" id="agent-hearing">
-        <p class="agent-section-label">Plaidoirie</p>
-        <h1 class="agent-title">Préparer une audience</h1>
-        <p class="agent-desc">Obtenez une fiche d'arguments structurée avant une audience : litige, points de droit, contre-arguments.</p>
-        <div class="template-pills" id="hearing-templates"></div>
-        <div class="input-card">
-          <div class="guided-form">
-            <div class="form-row">
-              <div class="form-field">
-                <label class="form-label">Nom du dossier *</label>
-                <input class="form-input" id="hearing-case" type="text" placeholder="Dossier Legrand" />
-              </div>
-              <div class="form-field">
-                <label class="form-label">Date d'audience *</label>
-                <input class="form-input" id="hearing-date" type="text" placeholder="15/04/2026" />
-              </div>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Parties</label>
-              <input class="form-input" id="hearing-parties" type="text" placeholder="Legrand vs Martin" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">Arguments et faits principaux *</label>
-              <textarea class="form-input" id="hearing-arguments" rows="4" placeholder="Décrivez les arguments, les faits, les points de droit…"></textarea>
-            </div>
-          </div>
-          <button class="btn-primary" onclick="runAgent('hearing')">Préparer</button>
-        </div>
-        <div class="result-area" id="hearing-result" style="display:none">
-          <div class="result-header">
-            <span>Fiche d'audience</span>
-            <div class="result-actions">
-              <button class="btn-copy"   onclick="copyResult('hearing-result-text')">Copier</button>
-              <button class="btn-export" onclick="exportResult('hearing', 'docx')">↓ Word</button>
-              <button class="btn-export btn-export-pdf" onclick="exportResult('hearing', 'pdf')">↓ PDF</button>
-            </div>
-          </div>
-          <div class="result-text" id="hearing-result-text"></div>
-          <div class="result-footer" id="hearing-result-footer" style="display:none">
-            <button class="btn-save-template" onclick="promptSaveTemplate('hearing')">＋ Sauvegarder ce modèle</button>
-          </div>
-        </div>
-        <div class="feedback-row" id="hearing-feedback-row" style="display:none">
-          <span class="feedback-question">Cette réponse était-elle utile ?</span>
-          <button class="feedback-btn" id="hearing-thumb-up"   onclick="sendFeedback('hearing', 'up')">👍</button>
-          <button class="feedback-btn" id="hearing-thumb-down" onclick="sendFeedback('hearing', 'down')">👎</button>
-        </div>
-      </section>
-
       <!-- Agent: Créer du contenu -->
       <section class="agent-view" id="agent-content">
         <p class="agent-section-label">Communication</p>
@@ -374,40 +219,52 @@
       <section class="agent-view" id="agent-cleaner">
         <p class="agent-section-label">Organisation</p>
         <h1 class="agent-title">Nettoyer mes fichiers</h1>
-        <p class="agent-desc">Surveillance du Bureau et des Téléchargements. L'agent analyse les fichiers présents et vous propose des actions de rangement. Rien ne se déplace sans votre validation.</p>
+        <p class="agent-desc">L'IA analyse votre Bureau et vos Téléchargements et vous propose les fichiers à supprimer. Rien ne se supprime sans votre validation.</p>
 
-        <div class="monitor-bar">
-          <div class="monitor-left">
-            <span class="monitor-dot" id="cleaner-monitor-dot"></span>
-            <span class="monitor-text" id="cleaner-monitor-text">Prêt à analyser</span>
-          </div>
-          <div class="monitor-right">
-            <button class="btn-copy" onclick="cleanerTriggerScan()">Scanner maintenant</button>
-          </div>
-        </div>
-        <div class="scan-progress-wrap"><div class="scan-progress-bar" id="cleaner-scan-bar"></div></div>
-
-        <div class="log-panel">
-          <div class="log-header">
-            <span class="log-title">Journal d'activité</span>
-            <button class="log-clear" onclick="cleanerClearLog()">Effacer</button>
-          </div>
-          <div class="log-entries" id="cleaner-log"></div>
+        <div class="cleaner-scan-bar">
+          <button class="btn-primary" id="cleaner-scan-btn" onclick="cleanerScan()">Scanner maintenant</button>
+          <span class="cleaner-scanning" id="cleaner-scanning" style="display:none">Analyse en cours…</span>
         </div>
 
-        <div class="section-heading">Propositions de nettoyage</div>
-        <div id="cleaner-proposals-list"></div>
-
-        <div class="triage-footer" id="cleaner-footer" style="display:none">
-          <span class="triage-summary" id="cleaner-summary"></span>
-          <div style="display:flex;gap:10px">
-            <button class="btn-copy" onclick="cleanerIgnoreAll()">Tout ignorer</button>
-            <button class="btn-primary" onclick="cleanerApplySelected()">Appliquer la sélection</button>
+        <!-- Summary banner (shown after scan) -->
+        <div class="cleaner-banner" id="cleaner-banner" style="display:none">
+          <div class="cleaner-banner-left">
+            <div class="cleaner-count" id="cleaner-count">0</div>
+            <div>
+              <div class="cleaner-banner-title">fichiers à supprimer</div>
+              <div class="cleaner-banner-sub">Décochez pour exclure un fichier</div>
+            </div>
+            <div class="cleaner-stats">
+              <div class="cleaner-stat">
+                <div class="cleaner-stat-num" id="cleaner-stat-total">0</div>
+                <div class="cleaner-stat-label">scannés</div>
+              </div>
+              <div class="cleaner-stat">
+                <div class="cleaner-stat-num" id="cleaner-stat-size">0</div>
+                <div class="cleaner-stat-label">récupérés</div>
+              </div>
+            </div>
           </div>
+          <button class="btn-danger" id="cleaner-confirm-top" onclick="cleanerConfirm()">
+            Supprimer les <span id="cleaner-sel-count-top">0</span> fichiers sélectionnés
+          </button>
         </div>
 
-        <div class="section-heading" id="cleaner-emails-heading" style="display:none;margin-top:36px">Emails avec pièces jointes</div>
-        <div id="cleaner-emails-list"></div>
+        <!-- Proposals table -->
+        <div id="cleaner-list" style="display:none"></div>
+
+        <!-- Empty state -->
+        <div class="cleaner-empty-state" id="cleaner-empty" style="display:none">
+          Aucun fichier à nettoyer. Bureau et Téléchargements sont propres.
+        </div>
+
+        <!-- Bottom confirm -->
+        <div class="cleaner-footer" id="cleaner-footer" style="display:none">
+          <span class="cleaner-safe-note">✓ Rien ne se supprime sans votre validation</span>
+          <button class="btn-danger" onclick="cleanerConfirm()">
+            Confirmer la suppression (<span id="cleaner-sel-count-bottom">0</span> fichiers)
+          </button>
+        </div>
       </section>
 
     </main>
