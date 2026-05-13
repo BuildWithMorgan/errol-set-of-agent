@@ -1,226 +1,6 @@
 // ─── Agent switching ──────────────────────────────────────────────────────────
 let currentAgent = 'dashboard';
 
-// ─── Cleaner state ────────────────────────────────────────────────────────────
-let cleanerEventSource = null;
-let cleanerBadgeCount  = 0;
-let cleanerProposals   = [];
-let cleanerSelected    = new Set();
-
-function cleanerUpdateBadge(count) {
-  const badge = document.getElementById('cleaner-badge');
-  if (!badge) return;
-  cleanerBadgeCount = count;
-  badge.textContent = count;
-  badge.style.display = count > 0 ? 'inline-flex' : 'none';
-}
-
-function cleanerInitSSE() {
-  if (cleanerEventSource) return;
-  cleanerEventSource = new EventSource('/api/cleaner/events');
-  cleanerEventSource.onmessage = (e) => {
-    const event = JSON.parse(e.data);
-    if (event.type === 'new_proposals') {
-      cleanerUpdateBadge(cleanerBadgeCount + event.count);
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && event.count > 0) {
-        new Notification('Le Play Avocats', {
-          body: `${event.count} nouvelle${event.count > 1 ? 's' : ''} proposition${event.count > 1 ? 's' : ''} de nettoyage`,
-        });
-      }
-      if (document.getElementById('agent-cleaner')?.classList.contains('active')) {
-        cleanerLoadProposals();
-      }
-    }
-    if (event.type === 'scan_progress') {
-      const bar = document.getElementById('cleaner-scan-bar');
-      const text = document.getElementById('cleaner-monitor-text');
-      const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
-      if (bar)  bar.style.width = pct + '%';
-      if (text) text.innerHTML = `Analyse en cours… <strong>${event.current} / ${event.total}</strong>`;
-    }
-    if (event.type === 'scan_complete') {
-      const bar = document.getElementById('cleaner-scan-bar');
-      if (bar) { bar.style.width = '100%'; setTimeout(() => { bar.style.width = '0%'; }, 600); }
-      cleanerScanDone(event.found);
-    }
-  };
-  cleanerEventSource.onerror = () => {
-    cleanerEventSource.close();
-    cleanerEventSource = null;
-    setTimeout(cleanerInitSSE, 5000);
-  };
-}
-
-
-async function cleanerLoadProposals() {
-  const r = await fetch('/api/cleaner/proposals');
-  cleanerProposals = await r.json();
-  const fileProposals  = cleanerProposals.filter(p => p.source === 'file');
-  const emailProposals = cleanerProposals.filter(p => p.source === 'email');
-  cleanerSelected = new Set(cleanerProposals.map(p => p.id));
-  cleanerRenderProposals(fileProposals);
-  cleanerRenderEmails(emailProposals);
-  cleanerUpdateFooter();
-  cleanerUpdateBadge(fileProposals.length + emailProposals.length);
-}
-
-function cleanerExtBadge(ext) {
-  const e = (ext || '').toLowerCase().replace('.', '');
-  return ['pdf','docx','doc','png','jpg','jpeg','txt','xlsx','xls'].includes(e) ? e : 'file';
-}
-
-function cleanerRenderProposals(proposals) {
-  const list = document.getElementById('cleaner-proposals-list');
-  if (!proposals.length) {
-    list.innerHTML = '<div class="cleaner-empty">Aucun fichier à traiter.</div>';
-    document.getElementById('cleaner-footer').style.display = 'none';
-    return;
-  }
-  document.getElementById('cleaner-footer').style.display = 'flex';
-  list.innerHTML = proposals.map(p => {
-    const ext  = p.original_path?.split('.').pop() || '';
-    const name = p.original_path?.split('/').pop() || '';
-    return `
-    <div class="triage-card" id="card-${p.id}">
-      <div class="triage-card-header">
-        <span class="file-type-badge badge-${cleanerExtBadge(ext)}">${escapeHtml(ext.toUpperCase())}</span>
-        <span class="file-original-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
-        <div class="triage-toggle">
-          <span class="toggle-label" id="lbl-${p.id}">Actif</span>
-          <button class="toggle-switch on" id="tog-${p.id}" onclick="cleanerToggle('${p.id}')"></button>
-        </div>
-      </div>
-      <div class="triage-actions">${cleanerRenderActions(p)}</div>
-    </div>`;
-  }).join('');
-}
-
-function cleanerRenderActions(p) {
-  if (p.action === 'delete') {
-    return `<div class="action-row">
-      <span class="action-tag tag-delete">🗑 Supprimer</span>
-      <span class="action-value">${escapeHtml(p.ai_reason)}</span>
-    </div>`;
-  }
-  if (p.action === 'rename_and_move') {
-    return `<div class="action-row">
-        <span class="action-tag tag-rename">✏ Renommer</span>
-        <span class="action-value">→ ${escapeHtml(p.proposed_name || '')}</span>
-      </div>
-      <div class="action-row">
-        <span class="action-tag tag-move">📁 Déplacer</span>
-        <span class="action-value">→ ${escapeHtml(p.proposed_destination || '')}</span>
-      </div>`;
-  }
-  return `<div class="action-row">
-    <span class="action-tag tag-review">👁 Examiner</span>
-    <span class="action-value">${escapeHtml(p.ai_reason)}</span>
-  </div>`;
-}
-
-function cleanerRenderEmails(emails) {
-  const heading = document.getElementById('cleaner-emails-heading');
-  const list    = document.getElementById('cleaner-emails-list');
-  if (!emails.length) { heading.style.display = 'none'; list.innerHTML = ''; return; }
-  heading.style.display = 'block';
-  list.innerHTML = emails.map(p => {
-    const meta  = p.email_meta || {};
-    const count = (meta.attachments || []).length;
-    const time  = meta.received_at
-      ? new Date(meta.received_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-      : '';
-    return `<div class="email-item">
-      <span class="email-unread"></span>
-      <div class="email-info">
-        <div class="email-sender">${escapeHtml(meta.sender || '')}</div>
-        <div class="email-subject">${escapeHtml(meta.subject || '')}</div>
-      </div>
-      <span class="email-attach">📎 ${count} fichier${count > 1 ? 's' : ''}</span>
-      <span class="email-time">${time}</span>
-    </div>`;
-  }).join('');
-}
-
-function cleanerUpdateFooter() {
-  const count = cleanerSelected.size;
-  const summary = document.getElementById('cleaner-summary');
-  if (summary) summary.innerHTML = `<strong>${count} action${count > 1 ? 's' : ''}</strong> sélectionnée${count > 1 ? 's' : ''}`;
-}
-
-function cleanerToggle(id) {
-  const tog = document.getElementById('tog-' + id);
-  const lbl = document.getElementById('lbl-' + id);
-  if (!tog) return;
-  const isOn = tog.classList.toggle('on');
-  lbl.textContent = isOn ? 'Actif' : 'Ignoré';
-  if (isOn) cleanerSelected.add(id); else cleanerSelected.delete(id);
-  cleanerUpdateFooter();
-}
-
-function cleanerIgnoreAll() {
-  cleanerProposals.forEach(p => {
-    const tog = document.getElementById('tog-' + p.id);
-    const lbl = document.getElementById('lbl-' + p.id);
-    if (tog) { tog.classList.remove('on'); lbl.textContent = 'Ignoré'; }
-  });
-  cleanerSelected.clear();
-  cleanerUpdateFooter();
-}
-
-async function cleanerApplySelected() {
-  if (!cleanerSelected.size) return;
-  const r = await fetch('/api/cleaner/apply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [...cleanerSelected], action: 'apply' }),
-  });
-  const result = await r.json();
-  cleanerAddLog('clean', `${result.applied.length} action(s) appliquée(s)`
-    + (result.errors.length ? ` · ${result.errors.length} erreur(s)` : ''));
-  cleanerUpdateBadge(0);
-  await cleanerLoadProposals();
-}
-
-async function cleanerTriggerScan() {
-  const dot  = document.getElementById('cleaner-monitor-dot');
-  const text = document.getElementById('cleaner-monitor-text');
-  const bar  = document.getElementById('cleaner-scan-bar');
-  if (dot)  dot.classList.add('scanning');
-  if (text) text.innerHTML = 'Analyse en cours… <strong>Bureau + Téléchargements</strong>';
-  if (bar)  bar.style.width = '0%';
-  await fetch('/api/cleaner/scan', { method: 'POST' });
-}
-
-function cleanerScanDone(found) {
-  const dot  = document.getElementById('cleaner-monitor-dot');
-  const text = document.getElementById('cleaner-monitor-text');
-  if (dot)  dot.classList.remove('scanning');
-  if (text) text.textContent = 'Prêt à analyser';
-  const msg = found > 0 ? `${found} élément(s) détecté(s)` : 'Scan terminé — aucun nouveau fichier';
-  cleanerAddLog(found > 0 ? 'found' : 'clean', msg);
-  if (found > 0) cleanerLoadProposals();
-}
-
-function cleanerAddLog(type, msg) {
-  const log = document.getElementById('cleaner-log');
-  if (!log) return;
-  const time = new Date().toLocaleTimeString('fr-FR');
-  const div  = document.createElement('div');
-  div.className = 'log-entry';
-  div.innerHTML = `<span class="log-time">${time}</span><span class="log-dot ${type}">●</span><span>${escapeHtml(msg)}</span>`;
-  log.insertBefore(div, log.firstChild);
-  while (log.children.length > 20) log.removeChild(log.lastChild);
-}
-
-function cleanerClearLog() {
-  const log = document.getElementById('cleaner-log');
-  if (log) log.innerHTML = '';
-}
-
-function cleanerRequestNotificationPermission() {
-  if (typeof Notification === 'undefined') return;
-  if (Notification.permission === 'default') Notification.requestPermission();
-}
 
 function navigateTo(agentId) {
   if (agentId === currentAgent) return;
@@ -257,8 +37,7 @@ function navigateTo(agentId) {
     }, { once: true });
 
     if (agentId === 'dashboard') loadDashboard();
-    else if (agentId === 'cleaner') cleanerLoadProposals();
-    else loadTemplates(agentId);
+    else if (agentId !== 'cleaner') loadTemplates(agentId);
   }, 220);
 }
 
@@ -289,22 +68,6 @@ async function checkOllamaStatus() {
 
 // ─── Collect input for each agent ────────────────────────────────────────────
 function collectInput(agentId) {
-  if (agentId === 'summary' && summaryExtractedText !== null) {
-    const text = summaryExtractedText;
-    summaryExtractedText = null;
-    return { agent: 'summary', input: text };
-  }
-  if (agentId === 'letter') {
-    return {
-      agent: 'letter',
-      fields: {
-        recipient:   document.getElementById('letter-recipient')?.value.trim() || '',
-        letter_type: document.getElementById('letter-type')?.value || 'mise en demeure',
-        subject:     document.getElementById('letter-subject')?.value.trim() || '',
-        facts:       document.getElementById('letter-facts')?.value.trim() || '',
-      }
-    };
-  }
   if (agentId === 'invoice') {
     return {
       agent: 'invoice',
@@ -314,17 +77,6 @@ function collectInput(agentId) {
         hours:       document.getElementById('invoice-hours')?.value.trim() || '',
         rate:        document.getElementById('invoice-rate')?.value.trim() || '',
         description: document.getElementById('invoice-description')?.value.trim() || '',
-      }
-    };
-  }
-  if (agentId === 'hearing') {
-    return {
-      agent: 'hearing',
-      fields: {
-        case_name:    document.getElementById('hearing-case')?.value.trim() || '',
-        hearing_date: document.getElementById('hearing-date')?.value.trim() || '',
-        parties:      document.getElementById('hearing-parties')?.value.trim() || '',
-        arguments:    document.getElementById('hearing-arguments')?.value.trim() || '',
       }
     };
   }
@@ -809,5 +561,124 @@ function reuseHistory(agentId, dataJson) {
 checkOllamaStatus();
 setInterval(checkOllamaStatus, 30000);
 loadDashboard();
-cleanerInitSSE();
-cleanerRequestNotificationPermission();
+
+// ─── Cleaner ──────────────────────────────────────────────────────────────────
+
+let _cleanerProposals = [];
+let _cleanerTotalScanned = 0;
+let _cleanerTotalSize = 0;
+
+async function cleanerScan() {
+  const btn = document.getElementById('cleaner-scan-btn');
+  const spinner = document.getElementById('cleaner-scanning');
+  btn.disabled = true;
+  spinner.style.display = 'inline';
+  document.getElementById('cleaner-banner').style.display = 'none';
+  document.getElementById('cleaner-list').style.display = 'none';
+  document.getElementById('cleaner-empty').style.display = 'none';
+  document.getElementById('cleaner-footer').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/cleaner/scan', { method: 'POST' });
+    const data = await r.json();
+    _cleanerProposals = data.proposals.map(p => ({ ...p, selected: true }));
+    _cleanerTotalScanned = data.total_scanned;
+    _cleanerTotalSize = data.total_size_bytes;
+    cleanerRender();
+  } catch (e) {
+    console.error('Scan error', e);
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function cleanerRender() {
+  const selected = _cleanerProposals.filter(p => p.selected);
+  const count = selected.length;
+
+  document.getElementById('cleaner-count').textContent = count;
+  document.getElementById('cleaner-stat-total').textContent = _cleanerTotalScanned;
+  document.getElementById('cleaner-stat-size').textContent = cleanerFormatBytes(_cleanerTotalSize);
+  document.getElementById('cleaner-sel-count-top').textContent = count;
+  document.getElementById('cleaner-sel-count-bottom').textContent = count;
+
+  if (_cleanerProposals.length === 0) {
+    document.getElementById('cleaner-empty').style.display = 'block';
+    document.getElementById('cleaner-banner').style.display = 'none';
+    document.getElementById('cleaner-list').style.display = 'none';
+    document.getElementById('cleaner-footer').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('cleaner-banner').style.display = 'flex';
+  document.getElementById('cleaner-list').style.display = 'block';
+  document.getElementById('cleaner-footer').style.display = 'flex';
+  document.getElementById('cleaner-empty').style.display = 'none';
+
+  const list = document.getElementById('cleaner-list');
+  list.innerHTML = _cleanerProposals.map((p, i) => {
+    const ext = p.type.toLowerCase();
+    const badgeClass = ['pdf', 'docx', 'doc'].includes(ext) ? 'badge-blue'
+                     : ['png', 'jpg', 'jpeg'].includes(ext) ? 'badge-green'
+                     : 'badge-grey';
+    return `
+      <div class="cleaner-row${p.selected ? '' : ' cleaner-row-unchecked'}" id="cleaner-row-${i}">
+        <div class="cleaner-check${p.selected ? ' checked' : ''}" onclick="cleanerToggle(${i})">
+          ${p.selected ? '✓' : ''}
+        </div>
+        <span class="file-type-badge ${badgeClass}">${escapeHtml(p.type)}</span>
+        <div class="cleaner-file-info">
+          <div class="cleaner-filename${p.selected ? '' : ' cleaner-filename-struck'}">${escapeHtml(p.filename)}</div>
+          <div class="cleaner-path">${escapeHtml(p.path)}</div>
+        </div>
+        <div class="cleaner-reason">${escapeHtml(p.reason)}</div>
+        <div class="cleaner-size">${cleanerFormatBytes(p.size_bytes)}</div>
+      </div>`;
+  }).join('');
+}
+
+function cleanerToggle(i) {
+  _cleanerProposals[i].selected = !_cleanerProposals[i].selected;
+  cleanerRender();
+}
+
+async function cleanerConfirm() {
+  const paths = _cleanerProposals.filter(p => p.selected).map(p => p.path);
+  if (paths.length === 0) return;
+
+  const r = await fetch('/api/cleaner/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paths }),
+  });
+  const result = await r.json();
+
+  const deletedSet = new Set(result.deleted);
+  _cleanerProposals = _cleanerProposals.filter(p => !deletedSet.has(p.path));
+  cleanerRender();
+
+  const msg = result.errors.length > 0
+    ? `${result.deleted.length} supprimé(s). ${result.errors.length} introuvable(s).`
+    : `${result.deleted.length} fichier(s) supprimé(s) avec succès.`;
+  cleanerShowToast(msg);
+}
+
+function cleanerShowToast(msg) {
+  let toast = document.getElementById('cleaner-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'cleaner-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0D0D0D;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;transition:opacity 0.3s;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+function cleanerFormatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
